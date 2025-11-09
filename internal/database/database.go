@@ -13,6 +13,8 @@ import (
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
 	"gorm.io/gorm/logger"
+	
+	"tundra/internal/database/models"
 )
 
 // Service represents a service that interacts with a database.
@@ -24,6 +26,9 @@ type Service interface {
 	// Close terminates the database connection.
 	// It returns an error if the connection cannot be closed.
 	Close() error
+
+	// GetDB returns the underlying GORM database instance.
+	GetDB() *gorm.DB
 }
 
 type service struct {
@@ -61,6 +66,11 @@ func New() Service {
 		db: db,
 	}
 	return dbInstance
+}
+
+// GetDB returns the underlying GORM database instance.
+func (s *service) GetDB() *gorm.DB {
+	return s.db
 }
 
 // Health checks the health of the database connection by pinging the database.
@@ -134,4 +144,13 @@ func (s *service) Close() error {
 		return err
 	}
 	return sqlDB.Close()
+}
+
+// AutoMigrate runs migrations for all models.
+func AutoMigrate(db *gorm.DB) error {
+	return db.AutoMigrate(
+		&models.User{},
+		&models.Product{},
+		&models.Order{},
+	)
 }
