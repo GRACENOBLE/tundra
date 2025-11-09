@@ -29,6 +29,19 @@ itest:
 	@echo "Running integration tests..."
 	@go test ./internal/database -v
 
+# Database Migrations
+migrate-up:
+	@echo "Running migrations..."
+	@go run cmd/migrate/main.go -action=up
+
+migrate-down:
+	@echo "Rolling back migrations..."
+	@go run cmd/migrate/main.go -action=down
+
+migrate-refresh:
+	@echo "Refreshing migrations..."
+	@go run cmd/migrate/main.go -action=refresh
+
 # Clean the binary
 clean:
 	@echo "Cleaning..."
@@ -46,4 +59,4 @@ watch:
 		Write-Output 'Watching...'; \
 	}"
 
-.PHONY: all build run test clean watch docker-run docker-down itest
+.PHONY: all build run test clean watch docker-run docker-down itest migrate-up migrate-down migrate-refresh
