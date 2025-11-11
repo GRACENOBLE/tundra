@@ -78,19 +78,19 @@ func cleanupTestDatabase(t *testing.T) {
 // setupTestServer creates a test server with a test database
 func setupTestServer(t *testing.T) (*Server, *gin.Engine) {
 	gin.SetMode(gin.TestMode)
-	
+
 	// Set up test JWT secret
 	os.Setenv("JWT_SECRET", "test-secret-key-for-testing-only")
-	
+
 	db := setupTestDatabase(t)
-	
+
 	server := &Server{
 		db: db,
 	}
-	
+
 	router := gin.New()
 	router.Use(gin.Recovery())
-	
+
 	return server, router
 }
 
@@ -98,17 +98,17 @@ func setupTestServer(t *testing.T) (*Server, *gin.Engine) {
 func createTestUser(t *testing.T, db *gorm.DB, username, email, password string) *models.User {
 	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
 	require.NoError(t, err)
-	
+
 	user := &models.User{
 		Username: username,
 		Email:    email,
 		Password: string(hashedPassword),
 		Role:     "user",
 	}
-	
+
 	err = db.Create(user).Error
 	require.NoError(t, err)
-	
+
 	return user
 }
 
@@ -117,31 +117,31 @@ func createTestUser(t *testing.T, db *gorm.DB, username, email, password string)
 func TestSignUpHandler_Success(t *testing.T) {
 	server, router := setupTestServer(t)
 	defer cleanupTestDatabase(t)
-	
+
 	router.POST("/auth/register", server.signUpHandler)
-	
+
 	reqBody := map[string]string{
 		"username": "testuser123",
 		"email":    "test@example.com",
 		"password": "Password123!",
 	}
 	jsonBody, _ := json.Marshal(reqBody)
-	
+
 	req, _ := http.NewRequest("POST", "/auth/register", bytes.NewBuffer(jsonBody))
 	req.Header.Set("Content-Type", "application/json")
 	resp := httptest.NewRecorder()
-	
+
 	router.ServeHTTP(resp, req)
-	
+
 	assert.Equal(t, http.StatusCreated, resp.Code)
-	
+
 	var response map[string]interface{}
 	err := json.Unmarshal(resp.Body.Bytes(), &response)
 	require.NoError(t, err)
-	
+
 	assert.Equal(t, "User registered successfully", response["message"])
 	assert.NotNil(t, response["user"])
-	
+
 	// Verify user was created in database
 	var user models.User
 	err = server.db.Where("email = ?", "test@example.com").First(&user).Error
@@ -152,9 +152,9 @@ func TestSignUpHandler_Success(t *testing.T) {
 func TestSignUpHandler_InvalidUsername(t *testing.T) {
 	server, router := setupTestServer(t)
 	defer cleanupTestDatabase(t)
-	
+
 	router.POST("/auth/register", server.signUpHandler)
-	
+
 	tests := []struct {
 		name     string
 		username string
@@ -176,7 +176,7 @@ func TestSignUpHandler_InvalidUsername(t *testing.T) {
 			wantErr:  "All fields are required",
 		},
 	}
-	
+
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			reqBody := map[string]string{
@@ -185,15 +185,15 @@ func TestSignUpHandler_InvalidUsername(t *testing.T) {
 				"password": "Password123!",
 			}
 			jsonBody, _ := json.Marshal(reqBody)
-			
+
 			req, _ := http.NewRequest("POST", "/auth/register", bytes.NewBuffer(jsonBody))
 			req.Header.Set("Content-Type", "application/json")
 			resp := httptest.NewRecorder()
-			
+
 			router.ServeHTTP(resp, req)
-			
+
 			assert.Equal(t, http.StatusBadRequest, resp.Code)
-			
+
 			var response map[string]string
 			err := json.Unmarshal(resp.Body.Bytes(), &response)
 			require.NoError(t, err)
@@ -205,9 +205,9 @@ func TestSignUpHandler_InvalidUsername(t *testing.T) {
 func TestSignUpHandler_InvalidEmail(t *testing.T) {
 	server, router := setupTestServer(t)
 	defer cleanupTestDatabase(t)
-	
+
 	router.POST("/auth/register", server.signUpHandler)
-	
+
 	tests := []struct {
 		name  string
 		email string
@@ -217,7 +217,7 @@ func TestSignUpHandler_InvalidEmail(t *testing.T) {
 		{"Missing local part", "@example.com"},
 		{"Invalid format", "not-an-email"},
 	}
-	
+
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			reqBody := map[string]string{
@@ -226,15 +226,15 @@ func TestSignUpHandler_InvalidEmail(t *testing.T) {
 				"password": "Password123!",
 			}
 			jsonBody, _ := json.Marshal(reqBody)
-			
+
 			req, _ := http.NewRequest("POST", "/auth/register", bytes.NewBuffer(jsonBody))
 			req.Header.Set("Content-Type", "application/json")
 			resp := httptest.NewRecorder()
-			
+
 			router.ServeHTTP(resp, req)
-			
+
 			assert.Equal(t, http.StatusBadRequest, resp.Code)
-			
+
 			var response map[string]string
 			err := json.Unmarshal(resp.Body.Bytes(), &response)
 			require.NoError(t, err)
@@ -246,9 +246,9 @@ func TestSignUpHandler_InvalidEmail(t *testing.T) {
 func TestSignUpHandler_WeakPassword(t *testing.T) {
 	server, router := setupTestServer(t)
 	defer cleanupTestDatabase(t)
-	
+
 	router.POST("/auth/register", server.signUpHandler)
-	
+
 	tests := []struct {
 		name     string
 		password string
@@ -280,7 +280,7 @@ func TestSignUpHandler_WeakPassword(t *testing.T) {
 			wantErr:  "special character",
 		},
 	}
-	
+
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			reqBody := map[string]string{
@@ -289,15 +289,15 @@ func TestSignUpHandler_WeakPassword(t *testing.T) {
 				"password": tt.password,
 			}
 			jsonBody, _ := json.Marshal(reqBody)
-			
+
 			req, _ := http.NewRequest("POST", "/auth/register", bytes.NewBuffer(jsonBody))
 			req.Header.Set("Content-Type", "application/json")
 			resp := httptest.NewRecorder()
-			
+
 			router.ServeHTTP(resp, req)
-			
+
 			assert.Equal(t, http.StatusBadRequest, resp.Code)
-			
+
 			var response map[string]string
 			err := json.Unmarshal(resp.Body.Bytes(), &response)
 			require.NoError(t, err)
@@ -309,27 +309,27 @@ func TestSignUpHandler_WeakPassword(t *testing.T) {
 func TestSignUpHandler_DuplicateUsername(t *testing.T) {
 	server, router := setupTestServer(t)
 	defer cleanupTestDatabase(t)
-	
+
 	router.POST("/auth/register", server.signUpHandler)
-	
+
 	// Create existing user
 	createTestUser(t, server.db, "existinguser", "existing@example.com", "Password123!")
-	
+
 	reqBody := map[string]string{
 		"username": "existinguser",
 		"email":    "new@example.com",
 		"password": "Password123!",
 	}
 	jsonBody, _ := json.Marshal(reqBody)
-	
+
 	req, _ := http.NewRequest("POST", "/auth/register", bytes.NewBuffer(jsonBody))
 	req.Header.Set("Content-Type", "application/json")
 	resp := httptest.NewRecorder()
-	
+
 	router.ServeHTTP(resp, req)
-	
+
 	assert.Equal(t, http.StatusBadRequest, resp.Code)
-	
+
 	var response map[string]string
 	err := json.Unmarshal(resp.Body.Bytes(), &response)
 	require.NoError(t, err)
@@ -339,27 +339,27 @@ func TestSignUpHandler_DuplicateUsername(t *testing.T) {
 func TestSignUpHandler_DuplicateEmail(t *testing.T) {
 	server, router := setupTestServer(t)
 	defer cleanupTestDatabase(t)
-	
+
 	router.POST("/auth/register", server.signUpHandler)
-	
+
 	// Create existing user
 	createTestUser(t, server.db, "existinguser", "existing@example.com", "Password123!")
-	
+
 	reqBody := map[string]string{
 		"username": "newuser",
 		"email":    "existing@example.com",
 		"password": "Password123!",
 	}
 	jsonBody, _ := json.Marshal(reqBody)
-	
+
 	req, _ := http.NewRequest("POST", "/auth/register", bytes.NewBuffer(jsonBody))
 	req.Header.Set("Content-Type", "application/json")
 	resp := httptest.NewRecorder()
-	
+
 	router.ServeHTTP(resp, req)
-	
+
 	assert.Equal(t, http.StatusBadRequest, resp.Code)
-	
+
 	var response map[string]string
 	err := json.Unmarshal(resp.Body.Bytes(), &response)
 	require.NoError(t, err)
@@ -369,37 +369,37 @@ func TestSignUpHandler_DuplicateEmail(t *testing.T) {
 func TestLoginHandler_Success(t *testing.T) {
 	server, router := setupTestServer(t)
 	defer cleanupTestDatabase(t)
-	
+
 	router.POST("/auth/login", server.loginHandler)
-	
+
 	// Create test user
 	createTestUser(t, server.db, "testuser", "test@example.com", "Password123!")
-	
+
 	reqBody := map[string]string{
 		"email":    "test@example.com",
 		"password": "Password123!",
 	}
 	jsonBody, _ := json.Marshal(reqBody)
-	
+
 	req, _ := http.NewRequest("POST", "/auth/login", bytes.NewBuffer(jsonBody))
 	req.Header.Set("Content-Type", "application/json")
 	resp := httptest.NewRecorder()
-	
+
 	router.ServeHTTP(resp, req)
-	
+
 	assert.Equal(t, http.StatusOK, resp.Code)
-	
+
 	var response map[string]interface{}
 	err := json.Unmarshal(resp.Body.Bytes(), &response)
 	require.NoError(t, err)
-	
+
 	assert.NotEmpty(t, response["token"])
 	assert.NotNil(t, response["user"])
-	
+
 	// Verify JWT token is valid
 	token, ok := response["token"].(string)
 	require.True(t, ok)
-	
+
 	claims, err := auth.ValidateJWT(token)
 	require.NoError(t, err)
 	assert.Equal(t, "test@example.com", claims.Email)
@@ -409,23 +409,23 @@ func TestLoginHandler_Success(t *testing.T) {
 func TestLoginHandler_InvalidEmail(t *testing.T) {
 	server, router := setupTestServer(t)
 	defer cleanupTestDatabase(t)
-	
+
 	router.POST("/auth/login", server.loginHandler)
-	
+
 	reqBody := map[string]string{
 		"email":    "not-an-email",
 		"password": "Password123!",
 	}
 	jsonBody, _ := json.Marshal(reqBody)
-	
+
 	req, _ := http.NewRequest("POST", "/auth/login", bytes.NewBuffer(jsonBody))
 	req.Header.Set("Content-Type", "application/json")
 	resp := httptest.NewRecorder()
-	
+
 	router.ServeHTTP(resp, req)
-	
+
 	assert.Equal(t, http.StatusBadRequest, resp.Code)
-	
+
 	var response map[string]string
 	err := json.Unmarshal(resp.Body.Bytes(), &response)
 	require.NoError(t, err)
@@ -435,23 +435,23 @@ func TestLoginHandler_InvalidEmail(t *testing.T) {
 func TestLoginHandler_UserNotFound(t *testing.T) {
 	server, router := setupTestServer(t)
 	defer cleanupTestDatabase(t)
-	
+
 	router.POST("/auth/login", server.loginHandler)
-	
+
 	reqBody := map[string]string{
 		"email":    "nonexistent@example.com",
 		"password": "Password123!",
 	}
 	jsonBody, _ := json.Marshal(reqBody)
-	
+
 	req, _ := http.NewRequest("POST", "/auth/login", bytes.NewBuffer(jsonBody))
 	req.Header.Set("Content-Type", "application/json")
 	resp := httptest.NewRecorder()
-	
+
 	router.ServeHTTP(resp, req)
-	
+
 	assert.Equal(t, http.StatusUnauthorized, resp.Code)
-	
+
 	var response map[string]string
 	err := json.Unmarshal(resp.Body.Bytes(), &response)
 	require.NoError(t, err)
@@ -461,26 +461,26 @@ func TestLoginHandler_UserNotFound(t *testing.T) {
 func TestLoginHandler_WrongPassword(t *testing.T) {
 	server, router := setupTestServer(t)
 	defer cleanupTestDatabase(t)
-	
+
 	router.POST("/auth/login", server.loginHandler)
-	
+
 	// Create test user
 	createTestUser(t, server.db, "testuser", "test@example.com", "Password123!")
-	
+
 	reqBody := map[string]string{
 		"email":    "test@example.com",
 		"password": "WrongPassword123!",
 	}
 	jsonBody, _ := json.Marshal(reqBody)
-	
+
 	req, _ := http.NewRequest("POST", "/auth/login", bytes.NewBuffer(jsonBody))
 	req.Header.Set("Content-Type", "application/json")
 	resp := httptest.NewRecorder()
-	
+
 	router.ServeHTTP(resp, req)
-	
+
 	assert.Equal(t, http.StatusUnauthorized, resp.Code)
-	
+
 	var response map[string]string
 	err := json.Unmarshal(resp.Body.Bytes(), &response)
 	require.NoError(t, err)
@@ -490,9 +490,9 @@ func TestLoginHandler_WrongPassword(t *testing.T) {
 func TestLoginHandler_MissingFields(t *testing.T) {
 	server, router := setupTestServer(t)
 	defer cleanupTestDatabase(t)
-	
+
 	router.POST("/auth/login", server.loginHandler)
-	
+
 	tests := []struct {
 		name    string
 		reqBody map[string]string
@@ -514,17 +514,17 @@ func TestLoginHandler_MissingFields(t *testing.T) {
 			reqBody: map[string]string{},
 		},
 	}
-	
+
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			jsonBody, _ := json.Marshal(tt.reqBody)
-			
+
 			req, _ := http.NewRequest("POST", "/auth/login", bytes.NewBuffer(jsonBody))
 			req.Header.Set("Content-Type", "application/json")
 			resp := httptest.NewRecorder()
-			
+
 			router.ServeHTTP(resp, req)
-			
+
 			assert.Equal(t, http.StatusBadRequest, resp.Code)
 		})
 	}
@@ -533,34 +533,34 @@ func TestLoginHandler_MissingFields(t *testing.T) {
 func TestPasswordHashing(t *testing.T) {
 	server, router := setupTestServer(t)
 	defer cleanupTestDatabase(t)
-	
+
 	router.POST("/auth/register", server.signUpHandler)
-	
+
 	password := "Password123!"
-	
+
 	reqBody := map[string]string{
 		"username": "testuser",
 		"email":    "test@example.com",
 		"password": password,
 	}
 	jsonBody, _ := json.Marshal(reqBody)
-	
+
 	req, _ := http.NewRequest("POST", "/auth/register", bytes.NewBuffer(jsonBody))
 	req.Header.Set("Content-Type", "application/json")
 	resp := httptest.NewRecorder()
-	
+
 	router.ServeHTTP(resp, req)
-	
+
 	require.Equal(t, http.StatusCreated, resp.Code)
-	
+
 	// Verify password is hashed in database
 	var user models.User
 	err := server.db.Where("email = ?", "test@example.com").First(&user).Error
 	require.NoError(t, err)
-	
+
 	// Password should not be stored in plain text
 	assert.NotEqual(t, password, user.Password)
-	
+
 	// Verify hashed password can be verified
 	err = bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(password))
 	assert.NoError(t, err)
@@ -569,38 +569,38 @@ func TestPasswordHashing(t *testing.T) {
 func TestJWTTokenGeneration(t *testing.T) {
 	server, router := setupTestServer(t)
 	defer cleanupTestDatabase(t)
-	
+
 	router.POST("/auth/login", server.loginHandler)
-	
+
 	// Create test user
 	user := createTestUser(t, server.db, "testuser", "test@example.com", "Password123!")
-	
+
 	reqBody := map[string]string{
 		"email":    "test@example.com",
 		"password": "Password123!",
 	}
 	jsonBody, _ := json.Marshal(reqBody)
-	
+
 	req, _ := http.NewRequest("POST", "/auth/login", bytes.NewBuffer(jsonBody))
 	req.Header.Set("Content-Type", "application/json")
 	resp := httptest.NewRecorder()
-	
+
 	router.ServeHTTP(resp, req)
-	
+
 	require.Equal(t, http.StatusOK, resp.Code)
-	
+
 	var response map[string]interface{}
 	err := json.Unmarshal(resp.Body.Bytes(), &response)
 	require.NoError(t, err)
-	
+
 	token, ok := response["token"].(string)
 	require.True(t, ok)
 	require.NotEmpty(t, token)
-	
+
 	// Validate token
 	claims, err := auth.ValidateJWT(token)
 	require.NoError(t, err)
-	
+
 	// Verify claims
 	assert.Equal(t, user.ID.String(), claims.UserID)
 	assert.Equal(t, user.Username, claims.Username)
