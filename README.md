@@ -82,9 +82,9 @@ docker-compose up -d
 4. **Run database migrations**(Preferably in a new terminal window)
 
 ```bash
-go run cmd/migrate/main.go -action=up
+make migrate-up-all
 # or
-make migrate-up
+go run cmd/migrate/main.go -action=up
 ```
 
 5. **Seed the database with test users** (Optional)
