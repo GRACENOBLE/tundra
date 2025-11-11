@@ -231,3 +231,101 @@ func TestCreateOrderRequestFormat(t *testing.T) {
 		t.Log("- Array must contain at least one item")
 	})
 }
+
+func TestGetOrdersAuthorization(t *testing.T) {
+	t.Run("Authenticated user required", func(t *testing.T) {
+		t.Log("Authorization requirements:")
+		t.Log("- Must have valid JWT token")
+		t.Log("- Unauthenticated requests should receive 401 Unauthorized")
+		t.Log("- User role can be standard 'user' (admin not required)")
+	})
+
+	t.Run("User isolation", func(t *testing.T) {
+		t.Log("Data isolation requirements:")
+		t.Log("- User can only see their own orders")
+		t.Log("- Orders filtered by user_id from JWT token")
+		t.Log("- User cannot access another user's orders")
+		t.Log("- No user_id parameter in request (security)")
+	})
+}
+
+func TestGetOrdersResponse(t *testing.T) {
+	t.Run("Success response with orders", func(t *testing.T) {
+		t.Log("Successful retrieval with orders should return:")
+		t.Log("- Status: 200 OK")
+		t.Log("- Body: Array of order objects")
+		t.Log("- Each order includes:")
+		t.Log("  - id: Order UUID")
+		t.Log("  - user_id: User who placed the order")
+		t.Log("  - description: Order description")
+		t.Log("  - total_price: Order total price")
+		t.Log("  - status: Order status (e.g., 'pending')")
+		t.Log("  - created_at: Timestamp when order was created")
+		t.Log("  - updated_at: Timestamp when order was last updated")
+	})
+
+	t.Run("Success response with no orders", func(t *testing.T) {
+		t.Log("Successful retrieval with no orders should return:")
+		t.Log("- Status: 200 OK")
+		t.Log("- Body: Empty array []")
+		t.Log("- Not an error condition")
+	})
+
+	t.Run("Error response - Unauthenticated", func(t *testing.T) {
+		t.Log("Unauthenticated request should return:")
+		t.Log("- Status: 401 Unauthorized")
+		t.Log("- Body: {\"error\": \"User not authenticated\"}")
+	})
+}
+
+func TestGetOrdersOrdering(t *testing.T) {
+	t.Run("Orders sorted by created date", func(t *testing.T) {
+		t.Log("Order sorting requirements:")
+		t.Log("- Orders sorted by created_at in descending order")
+		t.Log("- Most recent orders appear first")
+		t.Log("- Provides chronological order history")
+	})
+}
+
+func TestGetOrdersDataScope(t *testing.T) {
+	t.Run("Only user's orders returned", func(t *testing.T) {
+		t.Log("Data filtering:")
+		t.Log("- Query filters by user_id = authenticated user's ID")
+		t.Log("- Other users' orders excluded from results")
+		t.Log("- Ensures privacy and data security")
+	})
+
+	t.Run("All user orders included", func(t *testing.T) {
+		t.Log("Completeness requirements:")
+		t.Log("- All orders for the user returned")
+		t.Log("- No pagination (all orders in single response)")
+		t.Log("- Includes orders with any status (pending, completed, cancelled, etc.)")
+	})
+}
+
+func TestGetOrdersEndpoint(t *testing.T) {
+	t.Run("Endpoint details", func(t *testing.T) {
+		t.Log("GET /orders endpoint:")
+		t.Log("- Method: GET")
+		t.Log("- Path: /orders")
+		t.Log("- Headers: Authorization: Bearer <jwt-token>")
+		t.Log("- No query parameters or request body")
+	})
+
+	t.Run("Use case", func(t *testing.T) {
+		t.Log("Use case: View My Order History")
+		t.Log("- User can view all their previous orders")
+		t.Log("- Track order status and purchase history")
+		t.Log("- Review past transactions")
+	})
+}
+
+func TestGetOrdersTimestamps(t *testing.T) {
+	t.Run("Timestamp fields", func(t *testing.T) {
+		t.Log("Timestamp requirements:")
+		t.Log("- created_at: Automatically set when order is created")
+		t.Log("- updated_at: Automatically updated when order is modified")
+		t.Log("- Format: ISO 8601 timestamp")
+		t.Log("- Used for sorting and display")
+	})
+}

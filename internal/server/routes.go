@@ -48,6 +48,7 @@ func (s *Server) RegisterRoutes() http.Handler {
 	orders.Use(auth.AuthMiddleware()) // Require authentication
 	{
 		orders.POST("/", s.createOrderHandler)
+		orders.GET("/", s.getOrdersHandler)
 	}
 
 	return r
@@ -479,7 +480,7 @@ func (s *Server) createOrderHandler(c *gin.Context) {
 
 	for _, item := range orderItems {
 		var product models.Product
-		
+
 		// Find product and lock row for update to prevent race conditions
 		if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).Where("id = ?", item.ProductID).First(&product).Error; err != nil {
 			tx.Rollback()
@@ -556,6 +557,25 @@ func (s *Server) createOrderHandler(c *gin.Context) {
 
 	// Return created order with full details
 	c.JSON(http.StatusCreated, createdOrder)
+}
+
+func (s *Server) getOrdersHandler(c *gin.Context) {
+	// Get user ID from context (set by AuthMiddleware)
+	userID, exists := c.Get("userID")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "User not authenticated"})
+		return
+	}
+
+	// Query orders for the authenticated user
+	var orders []models.Order
+	if err := s.db.Where("user_id = ?", userID).Order("created_at DESC").Find(&orders).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to retrieve orders"})
+		return
+	}
+
+	// Return orders (empty array if no orders found)
+	c.JSON(http.StatusOK, orders)
 }
 
 // Helper function to parse positive integers from string
