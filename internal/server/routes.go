@@ -1,6 +1,7 @@
 package server
 
 import (
+	"fmt"
 	"net/http"
 	"strings"
 	"tundra/internal/database/models"
@@ -45,7 +46,7 @@ func (s *Server) HelloWorldHandler(c *gin.Context) {
 // }
 
 func (s *Server) signUpHandler(c *gin.Context) {
-
+	//Sign up request struct
 	var signUpRequest struct {
 		Name     string `json:"name" binding:"required"`
 		Email    string `json:"email" binding:"required,email"`
@@ -88,10 +89,27 @@ func (s *Server) signUpHandler(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create user"})
 		return
 	}
-	c.JSON(http.StatusOK, "Signup")
+	c.JSON(http.StatusCreated, fmt.Sprintf("Successfully signed up user: %s", signUpRequest.Name))
 
 }
 
 func (s *Server) loginHandler(c *gin.Context) {
+	//Sign in request struct
+	var signInRequest struct {
+		Email    string `json:"email" binding:"required,email"`
+		Password string `json:"password" binding:"required,min=8"`
+	}
+
+	//Parse the object
+	if err := c.ShouldBindJSON(&signInRequest); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	var user models.User
+	if err := s.db.Where("email= ?", signInRequest.Email).First(&user).Error; err != nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid email or password"})
+		return
+	}
 	c.JSON(http.StatusOK, "Signin")
 }
