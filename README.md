@@ -497,19 +497,19 @@ This watches for file changes and automatically rebuilds the application.
 Create a new migration:
 
 ```bash
-go run cmd/migrate/main.go -action=create -name=add_new_field
+make migrate-create name=add_new_field
 ```
 
 Run migrations:
 
 ```bash
-go run cmd/migrate/main.go -action=up
+make migrate-up-all
 ```
 
 Rollback last migration:
 
 ```bash
-go run cmd/migrate/main.go -action=down
+make migrate-down
 ```
 
 ### Regenerate Swagger Documentation
