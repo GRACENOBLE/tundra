@@ -10,6 +10,7 @@ import (
 	"tundra/internal/auth"
 	cldinary "tundra/internal/cloudinary"
 	"tundra/internal/database/models"
+	"tundra/internal/ratelimit"
 
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
@@ -30,21 +31,31 @@ func (s *Server) RegisterRoutes() http.Handler {
 		AllowCredentials: true,
 	}))
 
+	// Apply global rate limiter to all routes
+	r.Use(ratelimit.GlobalLimiter())
+
 	// Swagger documentation endpoint
 	r.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
 
+	// Authentication routes with strict rate limiting to prevent brute force attacks
 	authRoutes := r.Group("/auth")
+	authRoutes.Use(ratelimit.AuthLimiter()) // 5 requests per minute per IP
 	{
 		authRoutes.POST("/register", s.signUpHandler)
 		authRoutes.POST("/login", s.loginHandler)
 	}
 
-	// Public product routes (no authentication required)
-	r.GET("/products", s.listProductsHandler)
-	r.GET("/products/:id", s.getProductHandler)
+	// Public product routes with API rate limiting
+	productPublic := r.Group("/products")
+	productPublic.Use(ratelimit.APILimiter()) // 100 requests per minute per IP
+	{
+		productPublic.GET("", s.listProductsHandler)
+		productPublic.GET("/:id", s.getProductHandler)
+	}
 
 	// Protected product routes (require authentication and admin role)
 	productsAdmin := r.Group("/products")
+	productsAdmin.Use(ratelimit.APILimiter()) // Rate limiting
 	productsAdmin.Use(auth.AuthMiddleware())  // Require authentication
 	productsAdmin.Use(auth.AdminMiddleware()) // Require admin role
 	{
@@ -56,7 +67,8 @@ func (s *Server) RegisterRoutes() http.Handler {
 
 	// Protected order routes (require authentication, regular users can access)
 	orders := r.Group("/orders")
-	orders.Use(auth.AuthMiddleware()) // Require authentication
+	orders.Use(ratelimit.APILimiter()) // Rate limiting
+	orders.Use(auth.AuthMiddleware())  // Require authentication
 	{
 		orders.POST("/", s.createOrderHandler)
 		orders.GET("/", s.getOrdersHandler)

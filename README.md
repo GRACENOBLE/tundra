@@ -1,6 +1,6 @@
 # Tundra E-Commerce API
 
-A comprehensive e-commerce REST API built with Go, featuring authentication, product management, order processing, Redis caching, and Cloudinary image uploads.
+A comprehensive e-commerce REST API built with Go, featuring authentication, product management, order processing, Redis caching, Cloudinary image uploads, and rate limiting.
 
 ## Features
 
@@ -10,6 +10,7 @@ A comprehensive e-commerce REST API built with Go, featuring authentication, pro
 - 🛒 **Order Processing** - Transaction-based order creation with inventory management
 - 🚀 **Redis Caching** - Optimized product listing with intelligent cache invalidation
 - 📸 **Cloudinary Integration** - Cloud-based image storage and management
+- 🛡️ **Rate Limiting** - IP-based rate limiting to prevent abuse and brute force attacks
 - 📚 **Swagger/OpenAPI Documentation** - Interactive API documentation
 - 🧪 **Comprehensive Testing** - Integration tests with testcontainers
 - 🐳 **Docker Support** - Containerized PostgreSQL and Redis services
@@ -220,6 +221,55 @@ The API implements intelligent caching for product listings:
 - **Cache Invalidation**: Automatic invalidation on product create/update/delete
 - **Graceful Fallback**: API continues to work if Redis is unavailable
 
+## Rate Limiting
+
+The API implements IP-based rate limiting to prevent abuse and protect against brute force attacks:
+
+### Rate Limit Tiers
+
+1. **Global Rate Limit** - Applied to all endpoints
+
+   - **Limit**: 1000 requests per hour per IP
+   - **Purpose**: Prevent general API abuse
+
+2. **Authentication Rate Limit** - Applied to login/register endpoints
+
+   - **Limit**: 5 requests per minute per IP
+   - **Purpose**: Prevent brute force attacks on authentication
+   - **Endpoints**: `/auth/register`, `/auth/login`
+
+3. **API Rate Limit** - Applied to general API endpoints
+   - **Limit**: 100 requests per minute per IP
+   - **Purpose**: Prevent excessive API usage
+   - **Endpoints**: `/products/*`, `/orders/*`
+
+### Rate Limit Headers
+
+When rate limiting is active, the API returns these headers:
+
+- `X-RateLimit-Limit` - Maximum requests allowed in the period
+- `X-RateLimit-Remaining` - Requests remaining in current period
+- `X-RateLimit-Reset` - Time when the rate limit resets
+
+### Rate Limit Response
+
+When rate limit is exceeded, the API returns:
+
+```json
+{
+  "error": "rate limit exceeded"
+}
+```
+
+**Status Code**: `429 Too Many Requests`
+
+### Implementation Details
+
+- **Per-IP Tracking**: Rate limits are tracked per client IP address
+- **In-Memory Store**: Uses fast in-memory storage for minimal latency
+- **Automatic Reset**: Limits automatically reset after the time window
+- **Independent Limits**: Different endpoints have independent rate limit counters
+
 ## Testing
 
 Run all tests:
@@ -242,6 +292,7 @@ The test suite includes:
 - Order processing tests
 - Cache hit/miss scenarios
 - Cache invalidation tests
+- Rate limiting tests (8 comprehensive scenarios)
 
 ## Project Structure
 
@@ -255,6 +306,7 @@ tundra/
 │   ├── cloudinary/    # Cloudinary image upload client
 │   ├── database/      # Database connection & models
 │   │   └── models/    # GORM models (User, Product, Order)
+│   ├── ratelimit/     # Rate limiting middleware
 │   └── server/        # HTTP server & route handlers
 ├── migrations/        # SQL migration files
 ├── docs/             # Swagger/OpenAPI documentation
@@ -269,6 +321,7 @@ tundra/
 - **Database**: [PostgreSQL](https://www.postgresql.org/) with [GORM](https://gorm.io/)
 - **Caching**: [Redis](https://redis.io/) with [go-redis](https://github.com/redis/go-redis)
 - **Authentication**: [JWT](https://jwt.io/) with [golang-jwt](https://github.com/golang-jwt/jwt)
+- **Rate Limiting**: [ulule/limiter](https://github.com/ulule/limiter) - IP-based rate limiting
 - **Image Upload**: [Cloudinary](https://cloudinary.com/) Go SDK
 - **Documentation**: [Swagger/OpenAPI](https://swagger.io/) with [swaggo](https://github.com/swaggo/swag)
 - **Testing**: [Testcontainers](https://golang.testcontainers.org/)
