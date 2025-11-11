@@ -17,9 +17,10 @@ func TestGenerateJWT(t *testing.T) {
 	userID := uuid.New()
 	username := "testuser"
 	email := "test@example.com"
+	role := "user"
 
 	t.Run("Generate valid JWT", func(t *testing.T) {
-		token, err := GenerateJWT(userID, username, email)
+		token, err := GenerateJWT(userID, username, email, role)
 		if err != nil {
 			t.Fatalf("GenerateJWT() error = %v", err)
 		}
@@ -30,7 +31,7 @@ func TestGenerateJWT(t *testing.T) {
 	})
 
 	t.Run("JWT contains correct claims", func(t *testing.T) {
-		token, err := GenerateJWT(userID, username, email)
+		token, err := GenerateJWT(userID, username, email, role)
 		if err != nil {
 			t.Fatalf("GenerateJWT() error = %v", err)
 		}
@@ -53,13 +54,17 @@ func TestGenerateJWT(t *testing.T) {
 			t.Errorf("Expected Email %v, got %v", email, claims.Email)
 		}
 
+		if claims.Role != role {
+			t.Errorf("Expected Role %v, got %v", role, claims.Role)
+		}
+
 		if claims.Issuer != "tundra" {
 			t.Errorf("Expected Issuer 'tundra', got %v", claims.Issuer)
 		}
 	})
 
 	t.Run("JWT expires in 24 hours", func(t *testing.T) {
-		token, err := GenerateJWT(userID, username, email)
+		token, err := GenerateJWT(userID, username, email, role)
 		if err != nil {
 			t.Fatalf("GenerateJWT() error = %v", err)
 		}
@@ -83,7 +88,7 @@ func TestGenerateJWT(t *testing.T) {
 		os.Unsetenv("JWT_SECRET")
 		defer os.Setenv("JWT_SECRET", "test-secret-key-for-testing")
 
-		_, err := GenerateJWT(userID, username, email)
+		_, err := GenerateJWT(userID, username, email, role)
 		if err == nil {
 			t.Error("Expected error when JWT_SECRET is not set")
 		}
@@ -97,9 +102,10 @@ func TestValidateJWT(t *testing.T) {
 	userID := uuid.New()
 	username := "testuser"
 	email := "test@example.com"
+	role := "user"
 
 	t.Run("Validate valid token", func(t *testing.T) {
-		token, _ := GenerateJWT(userID, username, email)
+		token, _ := GenerateJWT(userID, username, email, role)
 
 		claims, err := ValidateJWT(token)
 		if err != nil {
@@ -121,7 +127,7 @@ func TestValidateJWT(t *testing.T) {
 	})
 
 	t.Run("Reject token with wrong secret", func(t *testing.T) {
-		token, _ := GenerateJWT(userID, username, email)
+		token, _ := GenerateJWT(userID, username, email, role)
 
 		// Change the secret
 		os.Setenv("JWT_SECRET", "different-secret")
@@ -140,6 +146,7 @@ func TestValidateJWT(t *testing.T) {
 			UserID:   userID.String(),
 			Username: username,
 			Email:    email,
+			Role:     role,
 			RegisteredClaims: jwt.RegisteredClaims{
 				ExpiresAt: jwt.NewNumericDate(time.Now().Add(-1 * time.Hour)),
 				IssuedAt:  jwt.NewNumericDate(time.Now().Add(-25 * time.Hour)),
@@ -164,8 +171,9 @@ func TestJWTDoesNotContainSensitiveInfo(t *testing.T) {
 	userID := uuid.New()
 	username := "testuser"
 	email := "test@example.com"
+	role := "user"
 
-	token, err := GenerateJWT(userID, username, email)
+	token, err := GenerateJWT(userID, username, email, role)
 	if err != nil {
 		t.Fatalf("GenerateJWT() error = %v", err)
 	}
@@ -186,6 +194,9 @@ func TestJWTDoesNotContainSensitiveInfo(t *testing.T) {
 		}
 		if claims.Email == "" {
 			t.Error("Email should be present")
+		}
+		if claims.Role == "" {
+			t.Error("Role should be present")
 		}
 		// Password field does not exist in Claims struct - this is correct
 	})

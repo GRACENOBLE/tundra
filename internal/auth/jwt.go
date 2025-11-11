@@ -13,11 +13,12 @@ type Claims struct {
 	UserID   string `json:"user_id"`
 	Username string `json:"username"`
 	Email    string `json:"email"`
+	Role     string `json:"role"`
 	jwt.RegisteredClaims
 }
 
-// Generates signed JWTs from userID, username, and email
-func GenerateJWT(userID uuid.UUID, username, email string) (string, error) {
+// Generates signed JWTs from userID, username, email, and role
+func GenerateJWT(userID uuid.UUID, username, email, role string) (string, error) {
 	secret := os.Getenv("JWT_SECRET")
 	if secret == "" {
 		return "", errors.New("JWT_SECRET not set")
@@ -29,6 +30,7 @@ func GenerateJWT(userID uuid.UUID, username, email string) (string, error) {
 		UserID:   userID.String(),
 		Username: username,
 		Email:    email,
+		Role:     role,
 		RegisteredClaims: jwt.RegisteredClaims{
 			ExpiresAt: jwt.NewNumericDate(expirationTime),
 			IssuedAt:  jwt.NewNumericDate(time.Now()),
@@ -45,7 +47,7 @@ func GenerateJWT(userID uuid.UUID, username, email string) (string, error) {
 	return tokenString, nil
 }
 
-//Validates a JWT tokenstring and returns claims and an error if any
+// Validates a JWT tokenstring and returns claims and an error if any
 func ValidateJWT(tokenString string) (*Claims, error) {
 	secret := os.Getenv("JWT_SECRET")
 	if secret == "" {

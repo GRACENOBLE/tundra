@@ -21,13 +21,16 @@ func (s *Server) RegisterRoutes() http.Handler {
 		AllowCredentials: true,
 	}))
 
-	auth := r.Group("/auth")
+	authRoutes := r.Group("/auth")
 	{
-		auth.POST("/register", s.signUpHandler)
-		auth.POST("/login", s.loginHandler)
+		authRoutes.POST("/register", s.signUpHandler)
+		authRoutes.POST("/login", s.loginHandler)
 	}
 
+	// Product routes - protected with authentication and admin authorization
 	products := r.Group("/products")
+	products.Use(auth.AuthMiddleware())  // Require authentication
+	products.Use(auth.AdminMiddleware()) // Require admin role
 	{
 		products.POST("/", s.createProductHandler)
 		products.PUT("/:id", s.updateProductHandler)
@@ -145,7 +148,7 @@ func (s *Server) loginHandler(c *gin.Context) {
 	}
 
 	// Generate JWT for the authenticated user
-	token, err := auth.GenerateJWT(user.ID, user.Username, user.Email)
+	token, err := auth.GenerateJWT(user.ID, user.Username, user.Email, user.Role)
 	if err != nil {
 		fmt.Printf("JWT Generation Error: %v\n", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to generate authentication token"})
@@ -160,6 +163,7 @@ func (s *Server) loginHandler(c *gin.Context) {
 			"id":       user.ID,
 			"username": user.Username,
 			"email":    user.Email,
+			"role":     user.Role,
 		},
 	})
 }
