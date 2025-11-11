@@ -42,7 +42,7 @@ BLUEPRINT_DB_DATABASE=blueprint
 BLUEPRINT_DB_USERNAME=blueprint
 BLUEPRINT_DB_PASSWORD=blueprint
 BLUEPRINT_DB_SCHEMA=public
-BLUEPRINT_DB_SSLMODE=require
+BLUEPRINT_DB_SSLMODE=require #Change to disable if using a local postgress database
 
 # JWT Configuration
 JWT_SECRET=your-super-secret-jwt-key-change-in-production
