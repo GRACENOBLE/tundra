@@ -341,8 +341,7 @@ func (s *Server) createProductHandler(c *gin.Context) {
 
 	// Save product to database
 	if err := s.db.Create(&product).Error; err != nil {
-		fmt.Printf("Database error creating product: %v\n", err)
-		c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("Failed to create product: %v", err)})
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create product"})
 		return
 	}
 
@@ -730,18 +729,27 @@ func (s *Server) createOrderHandler(c *gin.Context) {
 		return
 	}
 
-	// Parse request body
-	var orderItems []struct {
-		ProductID string `json:"productId" binding:"required"`
-		Quantity  int    `json:"quantity" binding:"required,gt=0"`
+	// Parse user ID string to UUID
+	userUUID, err := uuid.Parse(userID.(string))
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Invalid user ID"})
+		return
 	}
 
-	if err := c.ShouldBindJSON(&orderItems); err != nil {
+	// Parse request body
+	var requestBody struct {
+		Items []struct {
+			ProductID string `json:"productId" binding:"required"`
+			Quantity  int    `json:"quantity" binding:"required,gt=0"`
+		} `json:"items" binding:"required,dive"`
+	}
+
+	if err := c.ShouldBindJSON(&requestBody); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request body"})
 		return
 	}
 
-	if len(orderItems) == 0 {
+	if len(requestBody.Items) == 0 {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Order must contain at least one item"})
 		return
 	}
@@ -763,7 +771,7 @@ func (s *Server) createOrderHandler(c *gin.Context) {
 	var totalPrice float64
 	var orderProducts []models.OrderProduct
 
-	for _, item := range orderItems {
+	for _, item := range requestBody.Items {
 		var product models.Product
 
 		// Find product and lock row for update to prevent race conditions
@@ -802,10 +810,14 @@ func (s *Server) createOrderHandler(c *gin.Context) {
 
 	// Create order
 	order := models.Order{
-		UserID:      userID.(uuid.UUID),
-		Description: fmt.Sprintf("Order with %d item(s)", len(orderItems)),
-		TotalPrice:  totalPrice,
-		Status:      "pending",
+		UserID:     userUUID,
+		TotalPrice: totalPrice,
+		Status:     "pending",
+	}
+
+	// Set description if we have items
+	if len(requestBody.Items) > 0 {
+		order.Description = fmt.Sprintf("Order with %d item(s)", len(requestBody.Items))
 	}
 
 	if err := tx.Create(&order).Error; err != nil {
