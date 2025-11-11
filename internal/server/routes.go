@@ -23,7 +23,7 @@ func (s *Server) RegisterRoutes() http.Handler {
 
 	auth := r.Group("/auth")
 	{
-		auth.POST("/signup", s.signUpHandler)
+		auth.POST("/register", s.signUpHandler)
 		auth.POST("/login", s.loginHandler)
 	}
 
@@ -100,7 +100,7 @@ func (s *Server) signUpHandler(c *gin.Context) {
 		return
 	}
 
-	// Return success response (without password)
+	// Return success response
 	c.JSON(http.StatusCreated, gin.H{
 		"message": "User registered successfully",
 		"user": gin.H{
