@@ -33,6 +33,7 @@ Create a `.env` file in the root directory with the following variables:
 ```env
 # Server Configuration
 PORT=8080
+APP_ENV=local
 
 # Database Configuration
 BLUEPRINT_DB_HOST=localhost
@@ -40,6 +41,8 @@ BLUEPRINT_DB_PORT=5432
 BLUEPRINT_DB_DATABASE=blueprint
 BLUEPRINT_DB_USERNAME=blueprint
 BLUEPRINT_DB_PASSWORD=blueprint
+BLUEPRINT_DB_SCHEMA=public
+BLUEPRINT_DB_SSLMODE=require
 
 # JWT Configuration
 JWT_SECRET=your-super-secret-jwt-key-change-in-production
