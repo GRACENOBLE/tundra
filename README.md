@@ -16,21 +16,6 @@ A comprehensive e-commerce REST API built with Go, featuring authentication, pro
 - **Docker Support** - Containerized PostgreSQL and Redis services
 - **Database Seeding** - Quick setup with test users for development
 
-## Recent Updates
-
-### November 2025
-
-- ✅ Fixed Cloudinary image upload (bytes.Reader implementation)
-- ✅ Fixed order creation endpoint (items array wrapper, UUID parsing)
-- ✅ Added category column to products table
-- ✅ Added description column to orders table
-- ✅ Improved product deletion with order history validation
-- ✅ Enhanced error logging for Cloudinary operations
-- ✅ Created database seed script with test users
-- ✅ Added make commands for seeding and migrations
-- ✅ Fixed route consistency (trailing slash issues)
-- ✅ Updated Swagger documentation
-
 ## Getting Started
 
 ### Prerequisites
