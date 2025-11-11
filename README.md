@@ -87,16 +87,18 @@ make migrate-up-all
 go run cmd/migrate/main.go -action=up
 ```
 
-5. **Seed the database with test users** (Optional)
+5. **Seed the database with test users and products** (Optional)
 
 ```bash
 make seed
 ```
 
-This creates two test users:
+This creates:
 
-- Admin: `admin@tundra.com` / `Hello@1234` (role: admin)
-- User: `user@tundra.com` / `Hello@1234` (role: user)
+- **2 test users**:
+  - Admin: `admin@tundra.com` / `Hello@1234` (role: admin)
+  - User: `user@tundra.com` / `Hello@1234` (role: user)
+- **10 sample products** across different categories (Electronics, Accessories, Audio, Storage)
 
 6. **Build the application**
 
@@ -169,7 +171,7 @@ Shutdown DB Container
 make docker-down
 ```
 
-Seed database with test users
+Seed database with test users and products
 
 ```bash
 make seed

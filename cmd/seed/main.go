@@ -152,29 +152,42 @@ func main() {
 		},
 	}
 
-	// Create products
-	createdCount := 0
-	skippedCount := 0
-	for _, product := range products {
-		var existing models.Product
-		result := db.Where("name = ?", product.Name).First(&existing)
-		if result.Error == nil {
-			skippedCount++
-			continue
-		}
+	// Check which products already exist
+	var existingProducts []models.Product
+	var productNames []string
+	for _, p := range products {
+		productNames = append(productNames, p.Name)
+	}
+	db.Where("name IN ?", productNames).Find(&existingProducts)
 
-		if err := db.Create(&product).Error; err != nil {
-			log.Printf("Failed to create product %s: %v", product.Name, err)
-			continue
-		}
-		createdCount++
-		fmt.Printf("✓ Created product: %s ($%.2f)\n", product.Name, product.Price)
+	// Create a map of existing product names
+	existingMap := make(map[string]bool)
+	for _, p := range existingProducts {
+		existingMap[p.Name] = true
 	}
 
-	if skippedCount > 0 {
-		fmt.Printf("\n⚠️  Skipped %d existing products\n", skippedCount)
+	// Filter out existing products
+	var newProducts []models.Product
+	for _, p := range products {
+		if !existingMap[p.Name] {
+			newProducts = append(newProducts, p)
+		}
 	}
-	fmt.Printf("✓ Created %d new products\n", createdCount)
+
+	// Batch insert new products in a single statement
+	if len(newProducts) > 0 {
+		if err := db.Create(&newProducts).Error; err != nil {
+			log.Fatalf("Failed to create products: %v", err)
+		}
+		fmt.Printf("✓ Created %d products in a single batch insert\n", len(newProducts))
+		for _, p := range newProducts {
+			fmt.Printf("  - %s ($%.2f)\n", p.Name, p.Price)
+		}
+	}
+
+	if len(existingProducts) > 0 {
+		fmt.Printf("\n⚠️  Skipped %d existing products\n", len(existingProducts))
+	}
 
 	fmt.Println("\n✅ Seeding completed successfully!")
 	fmt.Println("\nYou can now login with:")
