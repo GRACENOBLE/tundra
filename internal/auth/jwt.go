@@ -10,14 +10,14 @@ import (
 )
 
 type Claims struct {
-	UserID string   `json:"user_id"`
-	Name   string `json:"name"`
-	Email  string `json:"email"`
+	UserID   string `json:"user_id"`
+	Username string `json:"username"`
+	Email    string `json:"email"`
 	jwt.RegisteredClaims
 }
 
-// Generates signed JWTs from userID, name, and email
-func GenerateJWT(userID uuid.UUID, name, email string) (string, error) {
+// Generates signed JWTs from userID, username, and email
+func GenerateJWT(userID uuid.UUID, username, email string) (string, error) {
 	secret := os.Getenv("JWT_SECRET")
 	if secret == "" {
 		return "", errors.New("JWT_SECRET not set")
@@ -26,9 +26,9 @@ func GenerateJWT(userID uuid.UUID, name, email string) (string, error) {
 	expirationTime := time.Now().Add(24 * time.Hour)
 
 	claims := &Claims{
-		UserID: userID.String(),
-		Name:   name,
-		Email:  email,
+		UserID:   userID.String(),
+		Username: username,
+		Email:    email,
 		RegisteredClaims: jwt.RegisteredClaims{
 			ExpiresAt: jwt.NewNumericDate(expirationTime),
 			IssuedAt:  jwt.NewNumericDate(time.Now()),

@@ -3,7 +3,6 @@ package server
 import (
 	"fmt"
 	"net/http"
-	"strings"
 	"tundra/internal/auth"
 	"tundra/internal/database/models"
 
@@ -22,76 +21,94 @@ func (s *Server) RegisterRoutes() http.Handler {
 		AllowCredentials: true,
 	}))
 
-	r.GET("/", s.HelloWorldHandler)
-
-	// r.GET("/health", s.healthHandler)
-
 	auth := r.Group("/auth")
 	{
 		auth.POST("/signup", s.signUpHandler)
 		auth.POST("/login", s.loginHandler)
 	}
 
+	products := r.Group("/products")
+	{
+		products.POST("/", s.createProductHandler)
+	}
+
 	return r
 }
 
-func (s *Server) HelloWorldHandler(c *gin.Context) {
-	resp := make(map[string]string)
-	resp["message"] = "Hello World"
-
-	c.JSON(http.StatusOK, resp)
-}
-
-// func (s *Server) healthHandler(c *gin.Context) {
-// 	c.JSON(http.StatusOK, s.db.Health())
-// }
-
 func (s *Server) signUpHandler(c *gin.Context) {
-	//Sign up request struct
+	// Sign up request struct
 	var signUpRequest struct {
-		Name     string `json:"name" binding:"required"`
-		Email    string `json:"email" binding:"required,email"`
-		Password string `json:"password" binding:"required,min=8"`
+		Username string `json:"username" binding:"required"`
+		Email    string `json:"email" binding:"required"`
+		Password string `json:"password" binding:"required"`
 	}
 
-	//Parse the object
+	// Parse the request body
 	if err := c.ShouldBindJSON(&signUpRequest); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "All fields are required"})
+		return
+	}
+
+	// Validate username
+	if err := auth.ValidateUsername(signUpRequest.Username); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 
-	//Hash the password
-	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(signUpRequest.Password), bcrypt.DefaultCost)
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to hash the password"})
+	// Validate email format
+	if err := auth.ValidateEmail(signUpRequest.Email); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 
-	//create the user object
+	// Validate password strength
+	if err := auth.ValidatePassword(signUpRequest.Password); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	// Check if username already exists
+	var existingUser models.User
+	if err := s.db.Where("username = ?", signUpRequest.Username).First(&existingUser).Error; err == nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Username is already taken"})
+		return
+	}
+
+	// Check if email already exists
+	if err := s.db.Where("email = ?", signUpRequest.Email).First(&existingUser).Error; err == nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Email is already registered"})
+		return
+	}
+
+	// Hash the password
+	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(signUpRequest.Password), bcrypt.DefaultCost)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to process registration"})
+		return
+	}
+
+	// Create the user object
 	user := models.User{
-		Name:     signUpRequest.Name,
+		Username: signUpRequest.Username,
 		Email:    signUpRequest.Email,
 		Password: string(hashedPassword),
 	}
 
-	//Save the user to the database using GORM
+	// Save the user to the database
 	if err := s.db.Create(&user).Error; err != nil {
-		// Check for unique constraint violations
-		if strings.Contains(err.Error(), "duplicate key value") || strings.Contains(err.Error(), "UNIQUE constraint failed") {
-			if strings.Contains(err.Error(), "username") {
-				c.JSON(http.StatusConflict, gin.H{"error": "Username already exists"})
-				return
-			}
-			if strings.Contains(err.Error(), "email") {
-				c.JSON(http.StatusConflict, gin.H{"error": "Email already exists"})
-				return
-			}
-		}
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create user"})
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create user account"})
 		return
 	}
-	c.JSON(http.StatusCreated, fmt.Sprintf("Successfully signed up user: %s", signUpRequest.Name))
 
+	// Return success response (without password)
+	c.JSON(http.StatusCreated, gin.H{
+		"message": "User registered successfully",
+		"user": gin.H{
+			"id":       user.ID,
+			"username": user.Username,
+			"email":    user.Email,
+		},
+	})
 }
 
 func (s *Server) loginHandler(c *gin.Context) {
@@ -121,23 +138,45 @@ func (s *Server) loginHandler(c *gin.Context) {
 	}
 
 	//Generate a JWT for the verified user
-	token, err := auth.GenerateJWT(user.ID, user.Name, user.Email)
-	 if err != nil {
+	token, err := auth.GenerateJWT(user.ID, user.Username, user.Email)
+	if err != nil {
 
 		fmt.Printf("JWT Generation Error: %v\n", err)
-        c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to generate token"})
-        return
-    }
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to generate token"})
+		return
+	}
 
 	// Successful login response
-    c.JSON(http.StatusOK, gin.H{
-        "message": "Login successful",
-        "token":   token,
-        "user": gin.H{
-            "id":    user.ID,
-            "name":  user.Name,
-            "email": user.Email,
-        },
-    })
+	c.JSON(http.StatusOK, gin.H{
+		"message": "Login successful",
+		"token":   token,
+		"user": gin.H{
+			"id":       user.ID,
+			"username": user.Username,
+			"email":    user.Email,
+		},
+	})
 
+}
+
+func (s *Server) createProductHandler(c *gin.Context) {
+	var productRequest models.Product
+
+	if err := c.ShouldBindJSON(&productRequest); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	product := models.Product{
+		Name:        productRequest.Name,
+		Description: productRequest.Description,
+		Price:       productRequest.Price,
+		Stock:       productRequest.Stock,
+		Category:    productRequest.Category,
+	}
+
+	if err := s.db.Create(&product).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create product"})
+		return
+	}
 }
