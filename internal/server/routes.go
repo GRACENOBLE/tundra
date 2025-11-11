@@ -341,12 +341,22 @@ func (s *Server) listProductsHandler(c *gin.Context) {
 		}
 	}
 
+	// Get search parameter
+	searchQuery := c.Query("search")
+
 	// Calculate offset for pagination
 	offset := (page - 1) * pageSize
 
-	// Get total count of products
+	// Build query with optional search filter
+	query := s.db.Model(&models.Product{})
+	if searchQuery != "" {
+		// Case-insensitive partial match search on product name
+		query = query.Where("LOWER(name) LIKE LOWER(?)", "%"+searchQuery+"%")
+	}
+
+	// Get total count of products (with search filter if applicable)
 	var totalProducts int64
-	if err := s.db.Model(&models.Product{}).Count(&totalProducts).Error; err != nil {
+	if err := query.Count(&totalProducts).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to count products"})
 		return
 	}
@@ -362,9 +372,9 @@ func (s *Server) listProductsHandler(c *gin.Context) {
 		totalPages = 0
 	}
 
-	// Get products for current page
+	// Get products for current page (with search filter if applicable)
 	var products []models.Product
-	if err := s.db.Offset(offset).Limit(pageSize).Find(&products).Error; err != nil {
+	if err := query.Offset(offset).Limit(pageSize).Find(&products).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch products"})
 		return
 	}
