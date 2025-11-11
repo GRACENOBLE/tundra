@@ -228,7 +228,7 @@
                         "schema": {
                             "type": "array",
                             "items": {
-                                "$ref": "#/definitions/tundra_internal_database_models.Order"
+                                "$ref": "#/definitions/models.Order"
                             }
                         }
                     },
@@ -304,7 +304,7 @@
                     "201": {
                         "description": "Order created successfully with full details including order products",
                         "schema": {
-                            "$ref": "#/definitions/tundra_internal_database_models.Order"
+                            "$ref": "#/definitions/models.Order"
                         }
                     },
                     "400": {
@@ -408,7 +408,7 @@
                                 "products": {
                                     "type": "array",
                                     "items": {
-                                        "$ref": "#/definitions/tundra_internal_database_models.Product"
+                                        "$ref": "#/definitions/models.Product"
                                     }
                                 },
                                 "totalPages": {
@@ -503,7 +503,7 @@
                                     "type": "string"
                                 },
                                 "product": {
-                                    "$ref": "#/definitions/tundra_internal_database_models.Product"
+                                    "$ref": "#/definitions/models.Product"
                                 }
                             }
                         }
@@ -578,7 +578,7 @@
                     "200": {
                         "description": "Product details",
                         "schema": {
-                            "$ref": "#/definitions/tundra_internal_database_models.Product"
+                            "$ref": "#/definitions/models.Product"
                         }
                     },
                     "404": {
@@ -655,7 +655,7 @@
                                     "type": "string"
                                 },
                                 "product": {
-                                    "$ref": "#/definitions/tundra_internal_database_models.Product"
+                                    "$ref": "#/definitions/models.Product"
                                 }
                             }
                         }
@@ -905,7 +905,7 @@
         }
     },
     "definitions": {
-        "tundra_internal_database_models.Order": {
+        "models.Order": {
             "type": "object",
             "properties": {
                 "created_at": {
@@ -920,7 +920,7 @@
                 "order_products": {
                     "type": "array",
                     "items": {
-                        "$ref": "#/definitions/tundra_internal_database_models.OrderProduct"
+                        "$ref": "#/definitions/models.OrderProduct"
                     }
                 },
                 "status": {
@@ -937,7 +937,7 @@
                 }
             }
         },
-        "tundra_internal_database_models.OrderProduct": {
+        "models.OrderProduct": {
             "type": "object",
             "properties": {
                 "order_id": {
@@ -948,7 +948,7 @@
                     "type": "number"
                 },
                 "product": {
-                    "$ref": "#/definitions/tundra_internal_database_models.Product"
+                    "$ref": "#/definitions/models.Product"
                 },
                 "product_id": {
                     "type": "string"
@@ -958,7 +958,7 @@
                 }
             }
         },
-        "tundra_internal_database_models.Product": {
+        "models.Product": {
             "type": "object",
             "properties": {
                 "category": {

@@ -1,6 +1,7 @@
 package cloudinary
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	"io"
@@ -69,8 +70,11 @@ func (c *Client) UploadImage(file multipart.File, filename string, folder string
 	uniqueFilename := true
 	overwrite := false
 
+	// Use a reader for the SDK (passing []byte directly can be treated as unsupported by the SDK)
+	reader := bytes.NewReader(fileBytes)
+
 	// Upload to Cloudinary
-	uploadResult, err := c.cld.Upload.Upload(c.ctx, fileBytes, uploader.UploadParams{
+	uploadResult, err := c.cld.Upload.Upload(c.ctx, reader, uploader.UploadParams{
 		PublicID:       publicID,
 		Folder:         folder,
 		ResourceType:   "image",

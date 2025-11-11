@@ -1,6 +1,6 @@
 basePath: /
 definitions:
-  tundra_internal_database_models.Order:
+  models.Order:
     properties:
       created_at:
         type: string
@@ -10,7 +10,7 @@ definitions:
         type: string
       order_products:
         items:
-          $ref: '#/definitions/tundra_internal_database_models.OrderProduct'
+          $ref: '#/definitions/models.OrderProduct'
         type: array
       status:
         type: string
@@ -21,7 +21,7 @@ definitions:
       user_id:
         type: string
     type: object
-  tundra_internal_database_models.OrderProduct:
+  models.OrderProduct:
     properties:
       order_id:
         type: string
@@ -29,13 +29,13 @@ definitions:
         description: Price at time of order
         type: number
       product:
-        $ref: '#/definitions/tundra_internal_database_models.Product'
+        $ref: '#/definitions/models.Product'
       product_id:
         type: string
       quantity:
         type: integer
     type: object
-  tundra_internal_database_models.Product:
+  models.Product:
     properties:
       category:
         type: string
@@ -203,7 +203,7 @@ paths:
           description: List of user's orders (may be empty)
           schema:
             items:
-              $ref: '#/definitions/tundra_internal_database_models.Order'
+              $ref: '#/definitions/models.Order'
             type: array
         "401":
           description: User not authenticated
@@ -255,7 +255,7 @@ paths:
           description: Order created successfully with full details including order
             products
           schema:
-            $ref: '#/definitions/tundra_internal_database_models.Order'
+            $ref: '#/definitions/models.Order'
         "400":
           description: Invalid request body, empty order, or insufficient stock
           schema:
@@ -326,7 +326,7 @@ paths:
                 type: integer
               products:
                 items:
-                  $ref: '#/definitions/tundra_internal_database_models.Product'
+                  $ref: '#/definitions/models.Product'
                 type: array
               totalPages:
                 type: integer
@@ -388,7 +388,7 @@ paths:
               message:
                 type: string
               product:
-                $ref: '#/definitions/tundra_internal_database_models.Product'
+                $ref: '#/definitions/models.Product'
             type: object
         "400":
           description: Validation error or invalid image format
@@ -488,7 +488,7 @@ paths:
         "200":
           description: Product details
           schema:
-            $ref: '#/definitions/tundra_internal_database_models.Product'
+            $ref: '#/definitions/models.Product'
         "404":
           description: Product not found
           schema:
@@ -535,7 +535,7 @@ paths:
               message:
                 type: string
               product:
-                $ref: '#/definitions/tundra_internal_database_models.Product'
+                $ref: '#/definitions/models.Product'
             type: object
         "400":
           description: Validation error

@@ -234,7 +234,7 @@ const docTemplate = `{
                         "schema": {
                             "type": "array",
                             "items": {
-                                "$ref": "#/definitions/tundra_internal_database_models.Order"
+                                "$ref": "#/definitions/models.Order"
                             }
                         }
                     },
@@ -310,7 +310,7 @@ const docTemplate = `{
                     "201": {
                         "description": "Order created successfully with full details including order products",
                         "schema": {
-                            "$ref": "#/definitions/tundra_internal_database_models.Order"
+                            "$ref": "#/definitions/models.Order"
                         }
                     },
                     "400": {
@@ -414,7 +414,7 @@ const docTemplate = `{
                                 "products": {
                                     "type": "array",
                                     "items": {
-                                        "$ref": "#/definitions/tundra_internal_database_models.Product"
+                                        "$ref": "#/definitions/models.Product"
                                     }
                                 },
                                 "totalPages": {
@@ -509,7 +509,7 @@ const docTemplate = `{
                                     "type": "string"
                                 },
                                 "product": {
-                                    "$ref": "#/definitions/tundra_internal_database_models.Product"
+                                    "$ref": "#/definitions/models.Product"
                                 }
                             }
                         }
@@ -584,7 +584,7 @@ const docTemplate = `{
                     "200": {
                         "description": "Product details",
                         "schema": {
-                            "$ref": "#/definitions/tundra_internal_database_models.Product"
+                            "$ref": "#/definitions/models.Product"
                         }
                     },
                     "404": {
@@ -661,7 +661,7 @@ const docTemplate = `{
                                     "type": "string"
                                 },
                                 "product": {
-                                    "$ref": "#/definitions/tundra_internal_database_models.Product"
+                                    "$ref": "#/definitions/models.Product"
                                 }
                             }
                         }
@@ -911,7 +911,7 @@ const docTemplate = `{
         }
     },
     "definitions": {
-        "tundra_internal_database_models.Order": {
+        "models.Order": {
             "type": "object",
             "properties": {
                 "created_at": {
@@ -926,7 +926,7 @@ const docTemplate = `{
                 "order_products": {
                     "type": "array",
                     "items": {
-                        "$ref": "#/definitions/tundra_internal_database_models.OrderProduct"
+                        "$ref": "#/definitions/models.OrderProduct"
                     }
                 },
                 "status": {
@@ -943,7 +943,7 @@ const docTemplate = `{
                 }
             }
         },
-        "tundra_internal_database_models.OrderProduct": {
+        "models.OrderProduct": {
             "type": "object",
             "properties": {
                 "order_id": {
@@ -954,7 +954,7 @@ const docTemplate = `{
                     "type": "number"
                 },
                 "product": {
-                    "$ref": "#/definitions/tundra_internal_database_models.Product"
+                    "$ref": "#/definitions/models.Product"
                 },
                 "product_id": {
                     "type": "string"
@@ -964,7 +964,7 @@ const docTemplate = `{
                 }
             }
         },
-        "tundra_internal_database_models.Product": {
+        "models.Product": {
             "type": "object",
             "properties": {
                 "category": {
