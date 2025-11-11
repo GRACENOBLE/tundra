@@ -27,13 +27,16 @@ func (s *Server) RegisterRoutes() http.Handler {
 		authRoutes.POST("/login", s.loginHandler)
 	}
 
-	// Product routes - protected with authentication and admin authorization
-	products := r.Group("/products")
-	products.Use(auth.AuthMiddleware())  // Require authentication
-	products.Use(auth.AdminMiddleware()) // Require admin role
+	// Public product routes (no authentication required)
+	r.GET("/products", s.listProductsHandler)
+
+	// Protected product routes (require authentication and admin role)
+	productsAdmin := r.Group("/products")
+	productsAdmin.Use(auth.AuthMiddleware())  // Require authentication
+	productsAdmin.Use(auth.AdminMiddleware()) // Require admin role
 	{
-		products.POST("/", s.createProductHandler)
-		products.PUT("/:id", s.updateProductHandler)
+		productsAdmin.POST("/", s.createProductHandler)
+		productsAdmin.PUT("/:id", s.updateProductHandler)
 	}
 
 	return r
@@ -313,4 +316,72 @@ func (s *Server) updateProductHandler(c *gin.Context) {
 		"message": "Product updated successfully",
 		"product": product,
 	})
+}
+
+func (s *Server) listProductsHandler(c *gin.Context) {
+	// Get pagination parameters from query string
+	page := 1
+	pageSize := 10
+
+	// Parse page parameter
+	if pageParam := c.Query("page"); pageParam != "" {
+		if parsedPage, err := parsePositiveInt(pageParam); err == nil && parsedPage > 0 {
+			page = parsedPage
+		}
+	}
+
+	// Parse pageSize/limit parameter (support both names)
+	if pageSizeParam := c.Query("pageSize"); pageSizeParam != "" {
+		if parsedSize, err := parsePositiveInt(pageSizeParam); err == nil && parsedSize > 0 {
+			pageSize = parsedSize
+		}
+	} else if limitParam := c.Query("limit"); limitParam != "" {
+		if parsedLimit, err := parsePositiveInt(limitParam); err == nil && parsedLimit > 0 {
+			pageSize = parsedLimit
+		}
+	}
+
+	// Calculate offset for pagination
+	offset := (page - 1) * pageSize
+
+	// Get total count of products
+	var totalProducts int64
+	if err := s.db.Model(&models.Product{}).Count(&totalProducts).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to count products"})
+		return
+	}
+
+	// Calculate total pages
+	totalPages := int(totalProducts) / pageSize
+	if int(totalProducts)%pageSize != 0 {
+		totalPages++
+	}
+
+	// If total is 0, totalPages should be 0
+	if totalProducts == 0 {
+		totalPages = 0
+	}
+
+	// Get products for current page
+	var products []models.Product
+	if err := s.db.Offset(offset).Limit(pageSize).Find(&products).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch products"})
+		return
+	}
+
+	// Return paginated response
+	c.JSON(http.StatusOK, gin.H{
+		"currentPage":   page,
+		"pageSize":      len(products),
+		"totalPages":    totalPages,
+		"totalProducts": totalProducts,
+		"products":      products,
+	})
+}
+
+// Helper function to parse positive integers from string
+func parsePositiveInt(s string) (int, error) {
+	var result int
+	_, err := fmt.Sscanf(s, "%d", &result)
+	return result, err
 }
