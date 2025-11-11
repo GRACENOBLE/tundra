@@ -16,21 +16,6 @@ A comprehensive e-commerce REST API built with Go, featuring authentication, pro
 - **Docker Support** - Containerized PostgreSQL and Redis services
 - **Database Seeding** - Quick setup with test users for development
 
-## Recent Updates
-
-### November 2025
-
-- ✅ Fixed Cloudinary image upload (bytes.Reader implementation)
-- ✅ Fixed order creation endpoint (items array wrapper, UUID parsing)
-- ✅ Added category column to products table
-- ✅ Added description column to orders table
-- ✅ Improved product deletion with order history validation
-- ✅ Enhanced error logging for Cloudinary operations
-- ✅ Created database seed script with test users
-- ✅ Added make commands for seeding and migrations
-- ✅ Fixed route consistency (trailing slash issues)
-- ✅ Updated Swagger documentation
-
 ## Getting Started
 
 ### Prerequisites
@@ -48,6 +33,7 @@ Create a `.env` file in the root directory with the following variables:
 ```env
 # Server Configuration
 PORT=8080
+APP_ENV=local
 
 # Database Configuration
 BLUEPRINT_DB_HOST=localhost
@@ -55,6 +41,8 @@ BLUEPRINT_DB_PORT=5432
 BLUEPRINT_DB_DATABASE=blueprint
 BLUEPRINT_DB_USERNAME=blueprint
 BLUEPRINT_DB_PASSWORD=blueprint
+BLUEPRINT_DB_SCHEMA=public
+BLUEPRINT_DB_SSLMODE=require #Change to disable if using a local postgress database
 
 # JWT Configuration
 JWT_SECRET=your-super-secret-jwt-key-change-in-production
@@ -91,12 +79,12 @@ make docker-run
 docker-compose up -d
 ```
 
-4. **Run database migrations**
+4. **Run database migrations**(Preferably in a new terminal window)
 
 ```bash
-go run cmd/migrate/main.go -action=up
+make migrate-up-all
 # or
-make migrate-up
+go run cmd/migrate/main.go -action=up
 ```
 
 5. **Seed the database with test users** (Optional)
@@ -129,7 +117,7 @@ Swagger documentation at `http://localhost:8080/swagger/index.html`
 
 ### Authentication
 
-- `POST /auth/register` - Register a new user
+- `POST /auth/register` - Register a new user (You cannot create an admin account, It is better to use the demo provided by the "make seed" command)
 - `POST /auth/login` - Login and receive JWT token
 
 ### Products (Public)
@@ -509,19 +497,19 @@ This watches for file changes and automatically rebuilds the application.
 Create a new migration:
 
 ```bash
-go run cmd/migrate/main.go -action=create -name=add_new_field
+make migrate-create name=add_new_field
 ```
 
 Run migrations:
 
 ```bash
-go run cmd/migrate/main.go -action=up
+make migrate-up-all
 ```
 
 Rollback last migration:
 
 ```bash
-go run cmd/migrate/main.go -action=down
+make migrate-down
 ```
 
 ### Regenerate Swagger Documentation
