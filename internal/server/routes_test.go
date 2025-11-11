@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"mime/multipart"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -179,6 +180,20 @@ func createTestUser(t *testing.T, db *gorm.DB, username, email, password string)
 	require.NoError(t, err)
 
 	return user
+}
+
+// Helper function to create multipart form data for product creation
+func createProductFormData(product map[string]string) (*bytes.Buffer, string) {
+	body := &bytes.Buffer{}
+	writer := multipart.NewWriter(body)
+
+	// Add form fields
+	for key, value := range product {
+		_ = writer.WriteField(key, value)
+	}
+
+	writer.Close()
+	return body, writer.FormDataContentType()
 }
 
 // ==================== Auth Handler Tests ====================
@@ -834,17 +849,17 @@ func TestProductListCaching_InvalidationOnCreate(t *testing.T) {
 	initialCount := response1["totalProducts"]
 
 	// Create a new product (should invalidate cache)
-	newProduct := map[string]interface{}{
+	newProduct := map[string]string{
 		"name":        "New Product",
 		"description": "New Description",
-		"price":       50.0,
-		"stock":       10,
+		"price":       "50.0",
+		"stock":       "10",
 		"category":    "New Category",
 	}
-	productJSON, _ := json.Marshal(newProduct)
+	productBody, contentType := createProductFormData(newProduct)
 
-	createReq, _ := http.NewRequest("POST", "/products", bytes.NewBuffer(productJSON))
-	createReq.Header.Set("Content-Type", "application/json")
+	createReq, _ := http.NewRequest("POST", "/products", productBody)
+	createReq.Header.Set("Content-Type", contentType)
 	createReq.Header.Set("Authorization", "Bearer "+token)
 	createResp := httptest.NewRecorder()
 	router.ServeHTTP(createResp, createReq)
