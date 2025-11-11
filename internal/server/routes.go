@@ -614,12 +614,30 @@ func (s *Server) deleteProductHandler(c *gin.Context) {
 		return
 	}
 
+	// Check if product is in any orders
+	var orderProductCount int64
+	s.db.Model(&models.OrderProduct{}).Where("product_id = ?", productID).Count(&orderProductCount)
+
+	if orderProductCount > 0 {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error": fmt.Sprintf("Cannot delete product. It is associated with %d order(s). Consider marking it as out of stock instead.", orderProductCount),
+		})
+		return
+	}
+
 	// Delete image from Cloudinary if it exists
 	if product.ImageURL != "" && s.cloudinary != nil {
 		publicID := cldinary.ExtractPublicID(product.ImageURL)
 		if publicID != "" {
-			// Delete from Cloudinary (don't fail if this fails)
-			_ = s.cloudinary.DeleteImage(publicID)
+			fmt.Printf("Deleting image from Cloudinary with public ID: %s\n", publicID)
+			// Delete from Cloudinary
+			if err := s.cloudinary.DeleteImage(publicID); err != nil {
+				fmt.Printf("Warning: Failed to delete image from Cloudinary: %v\n", err)
+			} else {
+				fmt.Printf("Successfully deleted image from Cloudinary\n")
+			}
+		} else {
+			fmt.Printf("Warning: Could not extract public ID from URL: %s\n", product.ImageURL)
 		}
 	}
 
