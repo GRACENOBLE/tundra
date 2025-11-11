@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"strconv"
 	"time"
+
 	"github.com/GRACENOBLE/tundra/internal/auth"
 	cldinary "github.com/GRACENOBLE/tundra/internal/cloudinary"
 	"github.com/GRACENOBLE/tundra/internal/database/models"
@@ -59,7 +60,7 @@ func (s *Server) RegisterRoutes() http.Handler {
 	productsAdmin.Use(auth.AuthMiddleware())  // Require authentication
 	productsAdmin.Use(auth.AdminMiddleware()) // Require admin role
 	{
-		productsAdmin.POST("/", s.createProductHandler)
+		productsAdmin.POST("", s.createProductHandler)
 		productsAdmin.PUT("/:id", s.updateProductHandler)
 		productsAdmin.DELETE("/:id", s.deleteProductHandler)
 		productsAdmin.POST("/:id/image", s.uploadProductImageHandler)
@@ -70,8 +71,8 @@ func (s *Server) RegisterRoutes() http.Handler {
 	orders.Use(ratelimit.APILimiter()) // Rate limiting
 	orders.Use(auth.AuthMiddleware())  // Require authentication
 	{
-		orders.POST("/", s.createOrderHandler)
-		orders.GET("/", s.getOrdersHandler)
+		orders.POST("", s.createOrderHandler)
+		orders.GET("", s.getOrdersHandler)
 	}
 
 	return r
@@ -293,6 +294,20 @@ func (s *Server) createProductHandler(c *gin.Context) {
 		return
 	}
 
+	// Get user ID from context (set by AuthMiddleware)
+	userID, exists := c.Get("userID")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "User authentication required"})
+		return
+	}
+
+	// Parse user ID to UUID
+	userUUID, err := uuid.Parse(userID.(string))
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Invalid user ID"})
+		return
+	}
+
 	// Create product
 	product := models.Product{
 		Name:        name,
@@ -300,6 +315,7 @@ func (s *Server) createProductHandler(c *gin.Context) {
 		Price:       price,
 		Stock:       stock,
 		Category:    category,
+		UserID:      userUUID,
 	}
 
 	// Handle image upload if provided
@@ -325,7 +341,8 @@ func (s *Server) createProductHandler(c *gin.Context) {
 
 	// Save product to database
 	if err := s.db.Create(&product).Error; err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create product"})
+		fmt.Printf("Database error creating product: %v\n", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("Failed to create product: %v", err)})
 		return
 	}
 

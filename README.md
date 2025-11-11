@@ -1,4 +1,4 @@
-# Tundra E-Commerce API
+# ❄️ Tundra E-Commerce API
 
 A comprehensive e-commerce REST API built with Go, featuring authentication, product management, order processing, Redis caching, Cloudinary image uploads, and rate limiting.
 

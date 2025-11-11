@@ -5,8 +5,6 @@ all: build test
 
 build:
 	@echo "Building..."
-	
-	
 	@go build -o main.exe cmd/api/main.go
 
 # Run the application
