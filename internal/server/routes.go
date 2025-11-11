@@ -38,6 +38,7 @@ func (s *Server) RegisterRoutes() http.Handler {
 	{
 		productsAdmin.POST("/", s.createProductHandler)
 		productsAdmin.PUT("/:id", s.updateProductHandler)
+		productsAdmin.DELETE("/:id", s.deleteProductHandler)
 	}
 
 	return r
@@ -403,6 +404,27 @@ func (s *Server) getProductHandler(c *gin.Context) {
 
 	// Return product details
 	c.JSON(http.StatusOK, product)
+}
+
+func (s *Server) deleteProductHandler(c *gin.Context) {
+	// Get product ID from URL parameter
+	productID := c.Param("id")
+
+	// Find product by ID first to check if it exists
+	var product models.Product
+	if err := s.db.Where("id = ?", productID).First(&product).Error; err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Product not found"})
+		return
+	}
+
+	// Delete the product
+	if err := s.db.Delete(&product).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to delete product"})
+		return
+	}
+
+	// Return success message
+	c.JSON(http.StatusOK, gin.H{"message": "Product deleted successfully"})
 }
 
 // Helper function to parse positive integers from string

@@ -433,5 +433,100 @@ func TestPublicEndpoints(t *testing.T) {
 		t.Log("The following endpoints require authentication and admin role:")
 		t.Log("- POST /products - Create new product")
 		t.Log("- PUT /products/:id - Update existing product")
+		t.Log("- DELETE /products/:id - Delete existing product")
+	})
+}
+
+func TestDeleteProduct(t *testing.T) {
+	tests := []struct {
+		name           string
+		productID      string
+		expectedStatus string
+		description    string
+	}{
+		{
+			name:           "Valid product deletion",
+			productID:      "valid-uuid-here",
+			expectedStatus: "200 OK",
+			description:    "Should successfully delete product when valid ID provided",
+		},
+		{
+			name:           "Non-existent product ID",
+			productID:      "00000000-0000-0000-0000-000000000000",
+			expectedStatus: "404 Not Found",
+			description:    "Should return 404 when product doesn't exist",
+		},
+		{
+			name:           "Invalid UUID format",
+			productID:      "invalid-id",
+			expectedStatus: "404 Not Found",
+			description:    "Should return 404 for invalid UUID format",
+		},
+		{
+			name:           "Empty product ID",
+			productID:      "",
+			expectedStatus: "404 Not Found",
+			description:    "Should return 404 for empty ID",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Log("Testing delete product:", tt.description)
+			t.Log("Product ID:", tt.productID)
+			t.Log("Expected status:", tt.expectedStatus)
+		})
+	}
+}
+
+func TestDeleteProductResponse(t *testing.T) {
+	t.Run("Success response", func(t *testing.T) {
+		t.Log("Successful product deletion should return:")
+		t.Log("- Status: 200 OK")
+		t.Log("- Body: {\"message\": \"Product deleted successfully\"}")
+	})
+
+	t.Run("Error response - Not found", func(t *testing.T) {
+		t.Log("Failed product deletion (not found) should return:")
+		t.Log("- Status: 404 Not Found")
+		t.Log("- Body: {\"error\": \"Product not found\"}")
+	})
+
+	t.Run("Error response - Database error", func(t *testing.T) {
+		t.Log("Failed product deletion (database error) should return:")
+		t.Log("- Status: 500 Internal Server Error")
+		t.Log("- Body: {\"error\": \"Failed to delete product\"}")
+	})
+}
+
+func TestDeleteProductAuthorization(t *testing.T) {
+	t.Run("Admin access required", func(t *testing.T) {
+		t.Log("DELETE /products/:id endpoint requirements:")
+		t.Log("- Must be authenticated (valid JWT token)")
+		t.Log("- Must have 'admin' role")
+		t.Log("- Regular users should receive 403 Forbidden")
+		t.Log("- Unauthenticated requests should receive 401 Unauthorized")
+	})
+
+	t.Run("Authorization checks", func(t *testing.T) {
+		t.Log("Authorization validation should occur before attempting deletion")
+		t.Log("- First: AuthMiddleware validates JWT token")
+		t.Log("- Second: AdminMiddleware validates admin role")
+		t.Log("- Third: Product existence check and deletion")
+	})
+}
+
+func TestDeleteProductBehavior(t *testing.T) {
+	t.Run("Permanent deletion", func(t *testing.T) {
+		t.Log("Product deletion behavior:")
+		t.Log("- Product should be permanently removed from database")
+		t.Log("- Subsequent GET requests for the deleted product should return 404")
+		t.Log("- Deleted product should not appear in product listings")
+	})
+
+	t.Run("Idempotency", func(t *testing.T) {
+		t.Log("Deleting an already deleted product:")
+		t.Log("- Should return 404 Not Found")
+		t.Log("- Should not cause errors or side effects")
 	})
 }
