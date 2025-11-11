@@ -79,7 +79,7 @@ make docker-run
 docker-compose up -d
 ```
 
-4. **Run database migrations**
+4. **Run database migrations**(Preferably in a new terminal window)
 
 ```bash
 go run cmd/migrate/main.go -action=up
