@@ -58,6 +58,11 @@ migrate-refresh:
 	@go run cmd/migrate/main.go -action=down
 	@go run cmd/migrate/main.go -action=up
 
+# Seed the database with default users
+seed:
+	@echo "Seeding database..."
+	@go run cmd/seed/main.go
+
 # Clean the binary
 clean:
 	@echo "Cleaning..."
@@ -88,4 +93,4 @@ swagger:
 		Write-Output 'Swagger docs generated successfully!'; \
 	}"
 
-.PHONY: all build run test clean watch docker-run docker-down itest migrate-create migrate-up-all migrate-down-all migrate-down migrate-up migrate-status migrate-refresh swagger
+.PHONY: all build run test clean watch docker-run docker-down itest migrate-create migrate-up-all migrate-down-all migrate-down migrate-up migrate-status migrate-refresh seed swagger

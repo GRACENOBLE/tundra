@@ -14,6 +14,22 @@ A comprehensive e-commerce REST API built with Go, featuring authentication, pro
 - **Swagger/OpenAPI Documentation** - Interactive API documentation
 - **Comprehensive Testing** - Integration tests with testcontainers
 - **Docker Support** - Containerized PostgreSQL and Redis services
+- **Database Seeding** - Quick setup with test users for development
+
+## Recent Updates
+
+### November 2025
+
+- ✅ Fixed Cloudinary image upload (bytes.Reader implementation)
+- ✅ Fixed order creation endpoint (items array wrapper, UUID parsing)
+- ✅ Added category column to products table
+- ✅ Added description column to orders table
+- ✅ Improved product deletion with order history validation
+- ✅ Enhanced error logging for Cloudinary operations
+- ✅ Created database seed script with test users
+- ✅ Added make commands for seeding and migrations
+- ✅ Fixed route consistency (trailing slash issues)
+- ✅ Updated Swagger documentation
 
 ## Getting Started
 
@@ -79,15 +95,28 @@ docker-compose up -d
 
 ```bash
 go run cmd/migrate/main.go -action=up
+# or
+make migrate-up
 ```
 
-5. **Build the application**
+5. **Seed the database with test users** (Optional)
+
+```bash
+make seed
+```
+
+This creates two test users:
+
+- Admin: `admin@tundra.com` / `Hello@1234` (role: admin)
+- User: `user@tundra.com` / `Hello@1234` (role: user)
+
+6. **Build the application**
 
 ```bash
 make build
 ```
 
-6. **Run the application**
+7. **Run the application**
 
 ```bash
 make run
@@ -150,6 +179,24 @@ Shutdown DB Container
 
 ```bash
 make docker-down
+```
+
+Seed database with test users
+
+```bash
+make seed
+```
+
+Run database migrations
+
+```bash
+make migrate-up
+```
+
+Rollback database migrations
+
+```bash
+make migrate-down
 ```
 
 DB Integrations Test:
@@ -401,8 +448,6 @@ tundra/
 | `REDIS_PASSWORD`        | No       | -                | Redis password (optional)                             |
 | `CLOUDINARY_URL`        | No       | -                | Cloudinary credentials (required for image uploads)   |
 
-
-
 ## Quick Start Guide
 
 ### Option 1: Using Docker (Recommended)
@@ -556,11 +601,29 @@ curl -X POST http://localhost:8080/auth/register \
 ### 2. Login
 
 ```bash
+# Login with a registered user
 curl -X POST http://localhost:8080/auth/login \
   -H "Content-Type: application/json" \
   -d '{
     "email": "john@example.com",
     "password": "SecurePass123!"
+  }'
+
+# Or use seeded test users (run `make seed` first)
+# Admin user:
+curl -X POST http://localhost:8080/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{
+    "email": "admin@tundra.com",
+    "password": "Hello@1234"
+  }'
+
+# Regular user:
+curl -X POST http://localhost:8080/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{
+    "email": "user@tundra.com",
+    "password": "Hello@1234"
   }'
 ```
 
@@ -692,15 +755,15 @@ For production, ensure you:
 
 ## Security Features
 
--  JWT token-based authentication
--  bcrypt password hashing (cost factor: 10)
--  Role-based access control (RBAC)
--  IP-based rate limiting
--  SQL injection prevention (parameterized queries)
--  XSS protection (input sanitization)
--  CORS configuration
--  Secure password validation (minimum 8 chars, uppercase, lowercase, number, special char)
--  Transaction-based order processing (prevents race conditions)
+- JWT token-based authentication
+- bcrypt password hashing (cost factor: 10)
+- Role-based access control (RBAC)
+- IP-based rate limiting
+- SQL injection prevention (parameterized queries)
+- XSS protection (input sanitization)
+- CORS configuration
+- Secure password validation (minimum 8 chars, uppercase, lowercase, number, special char)
+- Transaction-based order processing (prevents race conditions)
 
 ## Roadmap
 
