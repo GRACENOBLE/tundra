@@ -5,12 +5,34 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"os"
 	"os/signal"
 	"syscall"
 	"time"
 
+	_ "tundra/docs" // Import generated docs
 	"tundra/internal/server"
 )
+
+// @title           Tundra E-Commerce API
+// @version         1.0
+// @description     A comprehensive e-commerce API with authentication, product management, order processing, and Redis caching.
+// @termsOfService  http://swagger.io/terms/
+
+// @contact.name   API Support
+// @contact.url    https://github.com/GRACENOBLE/tundra
+// @contact.email  support@tundra.com
+
+// @license.name  MIT
+// @license.url   https://opensource.org/licenses/MIT
+
+// @host      localhost:8080
+// @BasePath  /
+
+// @securityDefinitions.apikey Bearer
+// @in header
+// @name Authorization
+// @description Type "Bearer" followed by a space and JWT token.
 
 func gracefulShutdown(apiServer *http.Server, done chan bool) {
 	// Create context that listens for the interrupt signal from the OS.
@@ -40,6 +62,15 @@ func gracefulShutdown(apiServer *http.Server, done chan bool) {
 func main() {
 
 	server := server.NewServer()
+
+	// Get port from server address
+	port := os.Getenv("PORT")
+	if port == "" {
+		port = "8080"
+	}
+
+	log.Printf("Server starting on port %s", port)
+	log.Printf("📚 Swagger UI available at: http://localhost:%s/swagger/index.html", port)
 
 	// Create a done channel to signal when the shutdown is complete
 	done := make(chan bool, 1)

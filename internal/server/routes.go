@@ -12,6 +12,8 @@ import (
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
+	swaggerFiles "github.com/swaggo/files"
+	ginSwagger "github.com/swaggo/gin-swagger"
 	"golang.org/x/crypto/bcrypt"
 	"gorm.io/gorm/clause"
 )
@@ -25,6 +27,9 @@ func (s *Server) RegisterRoutes() http.Handler {
 		AllowHeaders:     []string{"Accept", "Authorization", "Content-Type"},
 		AllowCredentials: true,
 	}))
+
+	// Swagger documentation endpoint
+	r.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
 
 	authRoutes := r.Group("/auth")
 	{
@@ -71,6 +76,17 @@ func (s *Server) invalidateProductCache() {
 	}
 }
 
+// @Summary Register a new user
+// @Description Create a new user account with username, email, and password. Password must be at least 8 characters with uppercase, lowercase, number, and special character.
+// @Tags Authentication
+// @Accept json
+// @Produce json
+// @Param request body object{username=string,email=string,password=string} true "Signup Request" example({"username":"john123","email":"john@example.com","password":"Password123!"})
+// @Success 201 {object} object{message=string,user=object{id=string,username=string,email=string,role=string}} "User registered successfully"
+// @Failure 400 {object} object{error=string} "Validation error"
+// @Failure 409 {object} object{error=string} "Username or email already exists"
+// @Failure 500 {object} object{error=string} "Internal server error"
+// @Router /auth/register [post]
 func (s *Server) signUpHandler(c *gin.Context) {
 	// Sign up request struct
 	var signUpRequest struct {
@@ -147,6 +163,16 @@ func (s *Server) signUpHandler(c *gin.Context) {
 	})
 }
 
+// @Summary Login to user account
+// @Description Authenticate user with email and password, returns JWT token
+// @Tags Authentication
+// @Accept json
+// @Produce json
+// @Param request body object{email=string,password=string} true "Login Request" example({"email":"john@example.com","password":"Password123!"})
+// @Success 200 {object} object{message=string,token=string,user=object{id=string,username=string,email=string,role=string}} "Login successful"
+// @Failure 400 {object} object{error=string} "Validation error"
+// @Failure 401 {object} object{error=string} "Invalid credentials"
+// @Router /auth/login [post]
 func (s *Server) loginHandler(c *gin.Context) {
 	// Login request struct
 	var loginRequest struct {
@@ -200,6 +226,19 @@ func (s *Server) loginHandler(c *gin.Context) {
 	})
 }
 
+// @Summary Create a new product
+// @Description Create a new product in the catalog (Admin only)
+// @Tags Products
+// @Accept json
+// @Produce json
+// @Security Bearer
+// @Param request body object{name=string,description=string,price=number,stock=integer,category=string} true "Product Request" example({"name":"Laptop","description":"High-performance laptop","price":999.99,"stock":50,"category":"Electronics"})
+// @Success 201 {object} object{message=string,product=models.Product} "Product created successfully"
+// @Failure 400 {object} object{error=string} "Validation error"
+// @Failure 401 {object} object{error=string} "Unauthorized"
+// @Failure 403 {object} object{error=string} "Forbidden - Admin only"
+// @Failure 500 {object} object{error=string} "Internal server error"
+// @Router /products [post]
 func (s *Server) createProductHandler(c *gin.Context) {
 	var productRequest struct {
 		Name        string  `json:"name" binding:"required"`
@@ -266,6 +305,21 @@ func (s *Server) createProductHandler(c *gin.Context) {
 	})
 }
 
+// @Summary Update a product
+// @Description Update product details (Admin only). All fields are optional.
+// @Tags Products
+// @Accept json
+// @Produce json
+// @Security Bearer
+// @Param id path string true "Product ID"
+// @Param request body object{name=string,description=string,price=number,stock=integer,category=string} false "Product Update Request" example({"name":"Updated Laptop","price":899.99})
+// @Success 200 {object} object{message=string,product=models.Product} "Product updated successfully"
+// @Failure 400 {object} object{error=string} "Validation error"
+// @Failure 401 {object} object{error=string} "Unauthorized"
+// @Failure 403 {object} object{error=string} "Forbidden - Admin only"
+// @Failure 404 {object} object{error=string} "Product not found"
+// @Failure 500 {object} object{error=string} "Internal server error"
+// @Router /products/{id} [put]
 func (s *Server) updateProductHandler(c *gin.Context) {
 	// Get product ID from URL parameter
 	id := c.Param("id")
@@ -353,6 +407,17 @@ func (s *Server) updateProductHandler(c *gin.Context) {
 	})
 }
 
+// @Summary Get list of products
+// @Description Get paginated list of products with optional search. Results are cached in Redis for 5 minutes.
+// @Tags Products
+// @Produce json
+// @Param page query int false "Page number" default(1)
+// @Param pageSize query int false "Items per page" default(10)
+// @Param limit query int false "Items per page (alternative to pageSize)" default(10)
+// @Param search query string false "Search by product name (case-insensitive partial match)"
+// @Success 200 {object} object{currentPage=int,pageSize=int,totalPages=int,totalProducts=int,products=[]models.Product} "List of products"
+// @Failure 500 {object} object{error=string} "Internal server error"
+// @Router /products [get]
 func (s *Server) listProductsHandler(c *gin.Context) {
 	// Get pagination parameters from query string
 	page := 1
@@ -455,6 +520,14 @@ func (s *Server) listProductsHandler(c *gin.Context) {
 	c.JSON(http.StatusOK, response)
 }
 
+// @Summary Get product by ID
+// @Description Get detailed information about a specific product
+// @Tags Products
+// @Produce json
+// @Param id path string true "Product ID (UUID)"
+// @Success 200 {object} models.Product "Product details"
+// @Failure 404 {object} object{error=string} "Product not found"
+// @Router /products/{id} [get]
 func (s *Server) getProductHandler(c *gin.Context) {
 	// Get product ID from URL parameter
 	productID := c.Param("id")
@@ -470,6 +543,17 @@ func (s *Server) getProductHandler(c *gin.Context) {
 	c.JSON(http.StatusOK, product)
 }
 
+// @Summary Delete a product
+// @Description Delete a product from the catalog (Admin only). Invalidates product listing cache.
+// @Tags Products
+// @Security Bearer
+// @Param id path string true "Product ID (UUID)"
+// @Success 200 {object} object{message=string} "Product deleted successfully"
+// @Failure 401 {object} object{error=string} "Unauthorized"
+// @Failure 403 {object} object{error=string} "Forbidden - Admin only"
+// @Failure 404 {object} object{error=string} "Product not found"
+// @Failure 500 {object} object{error=string} "Internal server error"
+// @Router /products/{id} [delete]
 func (s *Server) deleteProductHandler(c *gin.Context) {
 	// Get product ID from URL parameter
 	productID := c.Param("id")
@@ -494,6 +578,19 @@ func (s *Server) deleteProductHandler(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"message": "Product deleted successfully"})
 }
 
+// @Summary Create a new order
+// @Description Create a new order for the authenticated user with one or more products. This endpoint validates product availability, checks stock levels, and updates inventory atomically. All operations are performed within a database transaction to ensure data consistency.
+// @Tags Orders
+// @Accept json
+// @Produce json
+// @Security Bearer
+// @Param order body object{items=[]object{productId=string,quantity=int}} true "Order items with product IDs and quantities"
+// @Success 201 {object} models.Order "Order created successfully with full details including order products"
+// @Failure 400 {object} object{error=string} "Invalid request body, empty order, or insufficient stock"
+// @Failure 401 {object} object{error=string} "User not authenticated"
+// @Failure 404 {object} object{error=string} "One or more products not found"
+// @Failure 500 {object} object{error=string} "Failed to create order or update stock"
+// @Router /orders [post]
 func (s *Server) createOrderHandler(c *gin.Context) {
 	// Get user ID from context (set by AuthMiddleware)
 	userID, exists := c.Get("userID")
@@ -616,6 +713,15 @@ func (s *Server) createOrderHandler(c *gin.Context) {
 	c.JSON(http.StatusCreated, createdOrder)
 }
 
+// @Summary Get user's orders
+// @Description Retrieve all orders for the authenticated user, ordered by creation date (newest first). Returns an empty array if the user has no orders.
+// @Tags Orders
+// @Produce json
+// @Security Bearer
+// @Success 200 {array} models.Order "List of user's orders (may be empty)"
+// @Failure 401 {object} object{error=string} "User not authenticated"
+// @Failure 500 {object} object{error=string} "Failed to retrieve orders from database"
+// @Router /orders [get]
 func (s *Server) getOrdersHandler(c *gin.Context) {
 	// Get user ID from context (set by AuthMiddleware)
 	userID, exists := c.Get("userID")

@@ -1,0 +1,571 @@
+basePath: /
+definitions:
+  tundra_internal_database_models.Order:
+    properties:
+      created_at:
+        type: string
+      description:
+        type: string
+      id:
+        type: string
+      order_products:
+        items:
+          $ref: '#/definitions/tundra_internal_database_models.OrderProduct'
+        type: array
+      status:
+        type: string
+      total_price:
+        type: number
+      updated_at:
+        type: string
+      user_id:
+        type: string
+    type: object
+  tundra_internal_database_models.OrderProduct:
+    properties:
+      order_id:
+        type: string
+      price:
+        description: Price at time of order
+        type: number
+      product:
+        $ref: '#/definitions/tundra_internal_database_models.Product'
+      product_id:
+        type: string
+      quantity:
+        type: integer
+    type: object
+  tundra_internal_database_models.Product:
+    properties:
+      category:
+        type: string
+      description:
+        type: string
+      id:
+        type: string
+      name:
+        type: string
+      price:
+        type: number
+      stock:
+        type: integer
+      user_id:
+        type: string
+    type: object
+host: localhost:8080
+info:
+  contact:
+    email: support@tundra.com
+    name: API Support
+    url: https://github.com/GRACENOBLE/tundra
+  description: A comprehensive e-commerce API with authentication, product management,
+    order processing, and Redis caching.
+  license:
+    name: MIT
+    url: https://opensource.org/licenses/MIT
+  termsOfService: http://swagger.io/terms/
+  title: Tundra E-Commerce API
+  version: "1.0"
+paths:
+  /auth/login:
+    post:
+      consumes:
+      - application/json
+      description: Authenticate user with email and password, returns JWT token
+      parameters:
+      - description: Login Request
+        in: body
+        name: request
+        required: true
+        schema:
+          properties:
+            email:
+              type: string
+            password:
+              type: string
+          type: object
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Login successful
+          schema:
+            properties:
+              message:
+                type: string
+              token:
+                type: string
+              user:
+                properties:
+                  email:
+                    type: string
+                  id:
+                    type: string
+                  role:
+                    type: string
+                  username:
+                    type: string
+                type: object
+            type: object
+        "400":
+          description: Validation error
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+        "401":
+          description: Invalid credentials
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+      summary: Login to user account
+      tags:
+      - Authentication
+  /auth/register:
+    post:
+      consumes:
+      - application/json
+      description: Create a new user account with username, email, and password. Password
+        must be at least 8 characters with uppercase, lowercase, number, and special
+        character.
+      parameters:
+      - description: Signup Request
+        in: body
+        name: request
+        required: true
+        schema:
+          properties:
+            email:
+              type: string
+            password:
+              type: string
+            username:
+              type: string
+          type: object
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: User registered successfully
+          schema:
+            properties:
+              message:
+                type: string
+              user:
+                properties:
+                  email:
+                    type: string
+                  id:
+                    type: string
+                  role:
+                    type: string
+                  username:
+                    type: string
+                type: object
+            type: object
+        "400":
+          description: Validation error
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+        "409":
+          description: Username or email already exists
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+        "500":
+          description: Internal server error
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+      summary: Register a new user
+      tags:
+      - Authentication
+  /orders:
+    get:
+      description: Retrieve all orders for the authenticated user, ordered by creation
+        date (newest first). Returns an empty array if the user has no orders.
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: List of user's orders (may be empty)
+          schema:
+            items:
+              $ref: '#/definitions/tundra_internal_database_models.Order'
+            type: array
+        "401":
+          description: User not authenticated
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+        "500":
+          description: Failed to retrieve orders from database
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+      security:
+      - Bearer: []
+      summary: Get user's orders
+      tags:
+      - Orders
+    post:
+      consumes:
+      - application/json
+      description: Create a new order for the authenticated user with one or more
+        products. This endpoint validates product availability, checks stock levels,
+        and updates inventory atomically. All operations are performed within a database
+        transaction to ensure data consistency.
+      parameters:
+      - description: Order items with product IDs and quantities
+        in: body
+        name: order
+        required: true
+        schema:
+          properties:
+            items:
+              items:
+                properties:
+                  productId:
+                    type: string
+                  quantity:
+                    type: integer
+                type: object
+              type: array
+          type: object
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Order created successfully with full details including order
+            products
+          schema:
+            $ref: '#/definitions/tundra_internal_database_models.Order'
+        "400":
+          description: Invalid request body, empty order, or insufficient stock
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+        "401":
+          description: User not authenticated
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+        "404":
+          description: One or more products not found
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+        "500":
+          description: Failed to create order or update stock
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+      security:
+      - Bearer: []
+      summary: Create a new order
+      tags:
+      - Orders
+  /products:
+    get:
+      description: Get paginated list of products with optional search. Results are
+        cached in Redis for 5 minutes.
+      parameters:
+      - default: 1
+        description: Page number
+        in: query
+        name: page
+        type: integer
+      - default: 10
+        description: Items per page
+        in: query
+        name: pageSize
+        type: integer
+      - default: 10
+        description: Items per page (alternative to pageSize)
+        in: query
+        name: limit
+        type: integer
+      - description: Search by product name (case-insensitive partial match)
+        in: query
+        name: search
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: List of products
+          schema:
+            properties:
+              currentPage:
+                type: integer
+              pageSize:
+                type: integer
+              products:
+                items:
+                  $ref: '#/definitions/tundra_internal_database_models.Product'
+                type: array
+              totalPages:
+                type: integer
+              totalProducts:
+                type: integer
+            type: object
+        "500":
+          description: Internal server error
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+      summary: Get list of products
+      tags:
+      - Products
+    post:
+      consumes:
+      - application/json
+      description: Create a new product in the catalog (Admin only)
+      parameters:
+      - description: Product Request
+        in: body
+        name: request
+        required: true
+        schema:
+          properties:
+            category:
+              type: string
+            description:
+              type: string
+            name:
+              type: string
+            price:
+              type: number
+            stock:
+              type: integer
+          type: object
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Product created successfully
+          schema:
+            properties:
+              message:
+                type: string
+              product:
+                $ref: '#/definitions/tundra_internal_database_models.Product'
+            type: object
+        "400":
+          description: Validation error
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+        "403":
+          description: Forbidden - Admin only
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+        "500":
+          description: Internal server error
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+      security:
+      - Bearer: []
+      summary: Create a new product
+      tags:
+      - Products
+  /products/{id}:
+    delete:
+      description: Delete a product from the catalog (Admin only). Invalidates product
+        listing cache.
+      parameters:
+      - description: Product ID (UUID)
+        in: path
+        name: id
+        required: true
+        type: string
+      responses:
+        "200":
+          description: Product deleted successfully
+          schema:
+            properties:
+              message:
+                type: string
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+        "403":
+          description: Forbidden - Admin only
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+        "404":
+          description: Product not found
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+        "500":
+          description: Internal server error
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+      security:
+      - Bearer: []
+      summary: Delete a product
+      tags:
+      - Products
+    get:
+      description: Get detailed information about a specific product
+      parameters:
+      - description: Product ID (UUID)
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Product details
+          schema:
+            $ref: '#/definitions/tundra_internal_database_models.Product'
+        "404":
+          description: Product not found
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+      summary: Get product by ID
+      tags:
+      - Products
+    put:
+      consumes:
+      - application/json
+      description: Update product details (Admin only). All fields are optional.
+      parameters:
+      - description: Product ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Product Update Request
+        in: body
+        name: request
+        schema:
+          properties:
+            category:
+              type: string
+            description:
+              type: string
+            name:
+              type: string
+            price:
+              type: number
+            stock:
+              type: integer
+          type: object
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Product updated successfully
+          schema:
+            properties:
+              message:
+                type: string
+              product:
+                $ref: '#/definitions/tundra_internal_database_models.Product'
+            type: object
+        "400":
+          description: Validation error
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+        "403":
+          description: Forbidden - Admin only
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+        "404":
+          description: Product not found
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+        "500":
+          description: Internal server error
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+      security:
+      - Bearer: []
+      summary: Update a product
+      tags:
+      - Products
+securityDefinitions:
+  Bearer:
+    description: Type "Bearer" followed by a space and JWT token.
+    in: header
+    name: Authorization
+    type: apiKey
+swagger: "2.0"

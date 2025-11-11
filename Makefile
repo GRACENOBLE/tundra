@@ -77,4 +77,17 @@ watch:
 		Write-Output 'Watching...'; \
 	}"
 
-.PHONY: all build run test clean watch docker-run docker-down itest migrate-create migrate-up-all migrate-down-all migrate-down migrate-up migrate-status migrate-refresh
+# Generate Swagger documentation
+swagger:
+	@echo "Generating Swagger documentation..."
+	@powershell -ExecutionPolicy Bypass -Command "if (Get-Command swag -ErrorAction SilentlyContinue) { \
+		swag init -g cmd/api/main.go --parseDependency --parseInternal; \
+		Write-Output 'Swagger docs generated successfully!'; \
+	} else { \
+		Write-Output 'Installing swag...'; \
+		go install github.com/swaggo/swag/cmd/swag@latest; \
+		swag init -g cmd/api/main.go --parseDependency --parseInternal; \
+		Write-Output 'Swagger docs generated successfully!'; \
+	}"
+
+.PHONY: all build run test clean watch docker-run docker-down itest migrate-create migrate-up-all migrate-down-all migrate-down migrate-up migrate-status migrate-refresh swagger

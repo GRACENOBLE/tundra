@@ -1,6 +1,6 @@
 services:
   psql_bp:
-    image: postgres:latest
+    image: postgres:15-alpine
     restart: unless-stopped
     environment:
       POSTGRES_DB: ${BLUEPRINT_DB_DATABASE}
