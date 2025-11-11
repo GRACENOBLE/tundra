@@ -14,7 +14,7 @@ import (
 	"gorm.io/gorm"
 	"gorm.io/gorm/logger"
 	
-	"tundra/internal/database/models"
+	"github.com/GRACENOBLE/tundra/internal/database/models"
 )
 
 // Service represents a service that interacts with a database.

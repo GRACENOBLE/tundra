@@ -4,16 +4,16 @@ A comprehensive e-commerce REST API built with Go, featuring authentication, pro
 
 ## Features
 
-- 🔐 **JWT Authentication** - Secure user registration and login
-- 👤 **Role-Based Access Control** - Admin and user roles with middleware protection
-- 📦 **Product Management** - Full CRUD operations with image upload support
-- 🛒 **Order Processing** - Transaction-based order creation with inventory management
-- 🚀 **Redis Caching** - Optimized product listing with intelligent cache invalidation
-- 📸 **Cloudinary Integration** - Cloud-based image storage and management
-- 🛡️ **Rate Limiting** - IP-based rate limiting to prevent abuse and brute force attacks
-- 📚 **Swagger/OpenAPI Documentation** - Interactive API documentation
-- 🧪 **Comprehensive Testing** - Integration tests with testcontainers
-- 🐳 **Docker Support** - Containerized PostgreSQL and Redis services
+- **JWT Authentication** - Secure user registration and login
+- **Role-Based Access Control** - Admin and user roles with middleware protection
+- **Product Management** - Full CRUD operations with image upload support
+- **Order Processing** - Transaction-based order creation with inventory management
+- **Redis Caching** - Optimized product listing with intelligent cache invalidation
+- **Cloudinary Integration** - Cloud-based image storage and management
+- **Rate Limiting** - IP-based rate limiting to prevent abuse and brute force attacks
+- **Swagger/OpenAPI Documentation** - Interactive API documentation
+- **Comprehensive Testing** - Integration tests with testcontainers
+- **Docker Support** - Containerized PostgreSQL and Redis services
 
 ## Getting Started
 
@@ -401,7 +401,7 @@ tundra/
 | `REDIS_PASSWORD`        | No       | -                | Redis password (optional)                             |
 | `CLOUDINARY_URL`        | No       | -                | Cloudinary credentials (required for image uploads)   |
 
-⚠️ **Security Note**: Never commit your `.env` file to version control. Use `.env.example` as a template.
+
 
 ## Quick Start Guide
 
@@ -673,14 +673,14 @@ docker-compose -f docker-compose.prod.yml up -d
 
 For production, ensure you:
 
-1. ✅ Use strong `JWT_SECRET` (minimum 32 characters)
-2. ✅ Use secure database credentials
-3. ✅ Enable HTTPS/TLS
-4. ✅ Set up Redis persistence
-5. ✅ Configure Cloudinary for production
-6. ✅ Set appropriate rate limits
-7. ✅ Enable monitoring and logging
-8. ✅ Use connection pooling
+1.  Use strong `JWT_SECRET` (minimum 32 characters)
+2.  Use secure database credentials
+3.  Enable HTTPS/TLS
+4.  Set up Redis persistence
+5.  Configure Cloudinary for production
+6.  Set appropriate rate limits
+7.  Enable monitoring and logging
+8.  Use connection pooling
 
 ## Performance Metrics
 
@@ -692,15 +692,15 @@ For production, ensure you:
 
 ## Security Features
 
-- ✅ JWT token-based authentication
-- ✅ bcrypt password hashing (cost factor: 10)
-- ✅ Role-based access control (RBAC)
-- ✅ IP-based rate limiting
-- ✅ SQL injection prevention (parameterized queries)
-- ✅ XSS protection (input sanitization)
-- ✅ CORS configuration
-- ✅ Secure password validation (minimum 8 chars, uppercase, lowercase, number, special char)
-- ✅ Transaction-based order processing (prevents race conditions)
+-  JWT token-based authentication
+-  bcrypt password hashing (cost factor: 10)
+-  Role-based access control (RBAC)
+-  IP-based rate limiting
+-  SQL injection prevention (parameterized queries)
+-  XSS protection (input sanitization)
+-  CORS configuration
+-  Secure password validation (minimum 8 chars, uppercase, lowercase, number, special char)
+-  Transaction-based order processing (prevents race conditions)
 
 ## Roadmap
 

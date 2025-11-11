@@ -10,8 +10,8 @@ import (
 	"syscall"
 	"time"
 
-	_ "tundra/docs" // Import generated docs
-	"tundra/internal/server"
+	_ "github.com/GRACENOBLE/tundra/docs" // Import generated docs
+	"github.com/GRACENOBLE/tundra/internal/server"
 )
 
 // @title           Tundra E-Commerce API

@@ -1,4 +1,4 @@
-module tundra
+module github.com/GRACENOBLE/tundra
 
 go 1.25.1
 

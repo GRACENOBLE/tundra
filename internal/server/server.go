@@ -12,8 +12,8 @@ import (
 	"github.com/redis/go-redis/v9"
 	"gorm.io/gorm"
 
-	"tundra/internal/cloudinary"
-	"tundra/internal/database"
+	"github.com/GRACENOBLE/tundra/internal/cloudinary"
+	"github.com/GRACENOBLE/tundra/internal/database"
 )
 
 type Server struct {

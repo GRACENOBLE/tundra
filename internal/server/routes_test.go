@@ -11,8 +11,8 @@ import (
 	"os"
 	"testing"
 	"time"
-	"tundra/internal/auth"
-	"tundra/internal/database/models"
+	"github.com/GRACENOBLE/tundra/internal/auth"
+	"github.com/GRACENOBLE/tundra/internal/database/models"
 
 	"github.com/gin-gonic/gin"
 	"github.com/redis/go-redis/v9"

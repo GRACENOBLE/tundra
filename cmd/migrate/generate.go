@@ -3,7 +3,7 @@ package main
 import (
 	"fmt"
 	"os"
-	"tundra/internal/database/models"
+	"github.com/GRACENOBLE/tundra/internal/database/models"
 
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
