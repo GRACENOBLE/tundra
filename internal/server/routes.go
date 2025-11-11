@@ -875,7 +875,7 @@ func (s *Server) getOrdersHandler(c *gin.Context) {
 
 	// Query orders for the authenticated user
 	var orders []models.Order
-	if err := s.db.Where("user_id = ?", userID).Order("created_at DESC").Find(&orders).Error; err != nil {
+	if err := s.db.Preload("OrderProducts.Product").Where("user_id = ?", userID).Order("created_at DESC").Find(&orders).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to retrieve orders"})
 		return
 	}
