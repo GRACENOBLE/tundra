@@ -12,14 +12,16 @@ import (
 	"github.com/redis/go-redis/v9"
 	"gorm.io/gorm"
 
+	"tundra/internal/cloudinary"
 	"tundra/internal/database"
 )
 
 type Server struct {
 	port int
 
-	db    *gorm.DB
-	redis *redis.Client
+	db         *gorm.DB
+	redis      *redis.Client
+	cloudinary *cloudinary.Client
 }
 
 func NewServer() *http.Server {
@@ -44,10 +46,18 @@ func NewServer() *http.Server {
 		redisClient = nil
 	}
 
+	// Initialize Cloudinary client
+	cloudinaryClient, err := cloudinary.NewClient()
+	if err != nil {
+		fmt.Printf("Warning: Cloudinary initialization failed: %v. Image uploads will be disabled.\n", err)
+		cloudinaryClient = nil
+	}
+
 	NewServer := &Server{
-		port:  port,
-		db:    database.New().GetDB(),
-		redis: redisClient,
+		port:       port,
+		db:         database.New().GetDB(),
+		redis:      redisClient,
+		cloudinary: cloudinaryClient,
 	}
 
 	// Declare Server config

@@ -28,7 +28,6 @@ import (
 
 // Test database container and connection
 var (
-	testDB             *gorm.DB
 	testContainer      *postgres.PostgresContainer
 	testRedisContainer *redisContainer.RedisContainer
 )

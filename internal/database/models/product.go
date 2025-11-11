@@ -11,5 +11,6 @@ type Product struct {
 	Price       float64   `gorm:"not null" json:"price"`
 	Stock       int64     `gorm:"not null" json:"stock"`
 	Category    string    `gorm:"not null" json:"category"`
+	ImageURL    string    `gorm:"default:null" json:"imageUrl,omitempty"`
 	UserID      uuid.UUID `gorm:"type:uuid;not null" json:"user_id"`
 }

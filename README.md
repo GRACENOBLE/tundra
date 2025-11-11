@@ -1,53 +1,285 @@
-# Project tundra
+# Tundra E-Commerce API
 
-One Paragraph of project description goes here
+A comprehensive e-commerce REST API built with Go, featuring authentication, product management, order processing, Redis caching, and Cloudinary image uploads.
+
+## Features
+
+- 🔐 **JWT Authentication** - Secure user registration and login
+- 👤 **Role-Based Access Control** - Admin and user roles with middleware protection
+- 📦 **Product Management** - Full CRUD operations with image upload support
+- 🛒 **Order Processing** - Transaction-based order creation with inventory management
+- 🚀 **Redis Caching** - Optimized product listing with intelligent cache invalidation
+- 📸 **Cloudinary Integration** - Cloud-based image storage and management
+- 📚 **Swagger/OpenAPI Documentation** - Interactive API documentation
+- 🧪 **Comprehensive Testing** - Integration tests with testcontainers
+- 🐳 **Docker Support** - Containerized PostgreSQL and Redis services
 
 ## Getting Started
 
-These instructions will get you a copy of the project up and running on your local machine for development and testing purposes. See deployment for notes on how to deploy the project on a live system.
+### Prerequisites
 
-## MakeFile
+- Go 1.21 or higher
+- Docker and Docker Compose
+- PostgreSQL 15
+- Redis 7
+- Cloudinary account (for image uploads)
+
+### Environment Variables
+
+Create a `.env` file in the root directory with the following variables:
+
+```env
+# Server Configuration
+PORT=8080
+
+# Database Configuration
+BLUEPRINT_DB_HOST=localhost
+BLUEPRINT_DB_PORT=5432
+BLUEPRINT_DB_DATABASE=blueprint
+BLUEPRINT_DB_USERNAME=blueprint
+BLUEPRINT_DB_PASSWORD=blueprint
+
+# JWT Configuration
+JWT_SECRET=your-super-secret-jwt-key-change-in-production
+
+# Redis Configuration (Optional - graceful fallback if not available)
+REDIS_ADDR=localhost:6379
+REDIS_PASSWORD=
+
+# Cloudinary Configuration (Optional - required for image uploads)
+# Format: cloudinary://API_KEY:API_SECRET@CLOUD_NAME
+CLOUDINARY_URL=cloudinary://your_api_key:your_api_secret@your_cloud_name
+```
+
+### Installation & Setup
+
+1. **Clone the repository**
+
+```bash
+git clone https://github.com/GRACENOBLE/tundra.git
+cd tundra
+```
+
+2. **Install dependencies**
+
+```bash
+go mod download
+```
+
+3. **Start Docker services**
+
+```bash
+make docker-run
+# or
+docker-compose up -d
+```
+
+4. **Run database migrations**
+
+```bash
+go run cmd/migrate/main.go -action=up
+```
+
+5. **Build the application**
+
+```bash
+make build
+```
+
+6. **Run the application**
+
+```bash
+make run
+```
+
+The API will be available at `http://localhost:8080`
+Swagger documentation at `http://localhost:8080/swagger/index.html`
+
+## API Endpoints
+
+### Authentication
+
+- `POST /auth/register` - Register a new user
+- `POST /auth/login` - Login and receive JWT token
+
+### Products (Public)
+
+- `GET /products` - List all products (supports pagination, search, caching)
+- `GET /products/:id` - Get product details
+
+### Products (Admin Only)
+
+- `POST /products` - Create a new product (supports multipart image upload)
+- `PUT /products/:id` - Update product details
+- `DELETE /products/:id` - Delete a product
+- `POST /products/:id/image` - Upload/update product image
+
+### Orders (Authenticated Users)
+
+- `POST /orders` - Create a new order
+- `GET /orders` - Get user's order history
+
+## MakeFile Commands
 
 Run build make command with tests
+
 ```bash
 make all
 ```
 
 Build the application
+
 ```bash
 make build
 ```
 
 Run the application
+
 ```bash
 make run
 ```
+
 Create DB container
+
 ```bash
 make docker-run
 ```
 
 Shutdown DB Container
+
 ```bash
 make docker-down
 ```
 
 DB Integrations Test:
+
 ```bash
 make itest
 ```
 
 Live reload the application:
+
 ```bash
 make watch
 ```
 
 Run the test suite:
+
 ```bash
 make test
 ```
 
 Clean up binary from the last build:
+
 ```bash
 make clean
 ```
+
+## Cloudinary Image Upload
+
+### Setup
+
+1. Create a free account at [Cloudinary](https://cloudinary.com)
+2. Get your credentials from the dashboard
+3. Set the `CLOUDINARY_URL` environment variable in the format:
+   ```
+   cloudinary://API_KEY:API_SECRET@CLOUD_NAME
+   ```
+
+### Usage
+
+#### Create Product with Image (Multipart Form Data)
+
+```bash
+curl -X POST http://localhost:8080/products \
+  -H "Authorization: Bearer YOUR_JWT_TOKEN" \
+  -F "name=Laptop" \
+  -F "description=High-performance laptop" \
+  -F "price=999.99" \
+  -F "stock=50" \
+  -F "category=Electronics" \
+  -F "image=@/path/to/image.jpg"
+```
+
+#### Upload/Update Product Image
+
+```bash
+curl -X POST http://localhost:8080/products/{product_id}/image \
+  -H "Authorization: Bearer YOUR_JWT_TOKEN" \
+  -F "image=@/path/to/image.jpg"
+```
+
+**Supported image formats:** JPG, JPEG, PNG, GIF, WEBP
+
+## Redis Caching
+
+The API implements intelligent caching for product listings:
+
+- **Cache Key Strategy**: `products:page:{page}:size:{size}:search:{query}`
+- **TTL**: 5 minutes
+- **Cache Invalidation**: Automatic invalidation on product create/update/delete
+- **Graceful Fallback**: API continues to work if Redis is unavailable
+
+## Testing
+
+Run all tests:
+
+```bash
+make test
+```
+
+Run integration tests:
+
+```bash
+make itest
+```
+
+The test suite includes:
+
+- Unit tests for authentication and validation
+- Integration tests with testcontainers (PostgreSQL + Redis)
+- Product CRUD operation tests
+- Order processing tests
+- Cache hit/miss scenarios
+- Cache invalidation tests
+
+## Project Structure
+
+```
+tundra/
+├── cmd/
+│   ├── api/           # Application entry point
+│   └── migrate/       # Database migration tools
+├── internal/
+│   ├── auth/          # JWT authentication & middleware
+│   ├── cloudinary/    # Cloudinary image upload client
+│   ├── database/      # Database connection & models
+│   │   └── models/    # GORM models (User, Product, Order)
+│   └── server/        # HTTP server & route handlers
+├── migrations/        # SQL migration files
+├── docs/             # Swagger/OpenAPI documentation
+├── docker-compose.yml
+├── Makefile
+└── README.md
+```
+
+## Technologies Used
+
+- **Framework**: [Gin](https://github.com/gin-gonic/gin) - HTTP web framework
+- **Database**: [PostgreSQL](https://www.postgresql.org/) with [GORM](https://gorm.io/)
+- **Caching**: [Redis](https://redis.io/) with [go-redis](https://github.com/redis/go-redis)
+- **Authentication**: [JWT](https://jwt.io/) with [golang-jwt](https://github.com/golang-jwt/jwt)
+- **Image Upload**: [Cloudinary](https://cloudinary.com/) Go SDK
+- **Documentation**: [Swagger/OpenAPI](https://swagger.io/) with [swaggo](https://github.com/swaggo/swag)
+- **Testing**: [Testcontainers](https://golang.testcontainers.org/)
+- **Containerization**: [Docker](https://www.docker.com/) & [Docker Compose](https://docs.docker.com/compose/)
+
+## License
+
+This project is licensed under the MIT License.
+
+## Author
+
+**GRACENOBLE**
+
+- GitHub: [@GRACENOBLE](https://github.com/GRACENOBLE)

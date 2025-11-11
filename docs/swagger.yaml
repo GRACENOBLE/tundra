@@ -43,6 +43,8 @@ definitions:
         type: string
       id:
         type: string
+      imageUrl:
+        type: string
       name:
         type: string
       price:
@@ -343,26 +345,39 @@ paths:
       - Products
     post:
       consumes:
-      - application/json
-      description: Create a new product in the catalog (Admin only)
+      - multipart/form-data
+      description: Create a new product in the catalog (Admin only). Supports optional
+        image upload via multipart/form-data.
       parameters:
-      - description: Product Request
-        in: body
-        name: request
+      - description: Product name
+        in: formData
+        name: name
         required: true
-        schema:
-          properties:
-            category:
-              type: string
-            description:
-              type: string
-            name:
-              type: string
-            price:
-              type: number
-            stock:
-              type: integer
-          type: object
+        type: string
+      - description: Product description
+        in: formData
+        name: description
+        required: true
+        type: string
+      - description: Product price (must be positive)
+        in: formData
+        name: price
+        required: true
+        type: number
+      - description: Product stock (must be non-negative)
+        in: formData
+        name: stock
+        required: true
+        type: integer
+      - description: Product category
+        in: formData
+        name: category
+        required: true
+        type: string
+      - description: Product image (jpg, jpeg, png, gif, webp)
+        in: formData
+        name: image
+        type: file
       produces:
       - application/json
       responses:
@@ -376,7 +391,7 @@ paths:
                 $ref: '#/definitions/tundra_internal_database_models.Product'
             type: object
         "400":
-          description: Validation error
+          description: Validation error or invalid image format
           schema:
             properties:
               error:
@@ -397,7 +412,7 @@ paths:
                 type: string
             type: object
         "500":
-          description: Internal server error
+          description: Internal server error or image upload failed
           schema:
             properties:
               error:
@@ -560,6 +575,75 @@ paths:
       security:
       - Bearer: []
       summary: Update a product
+      tags:
+      - Products
+  /products/{id}/image:
+    post:
+      consumes:
+      - multipart/form-data
+      description: Upload or update a product's image (Admin only). Accepts image
+        files in jpg, jpeg, png, gif, or webp format.
+      parameters:
+      - description: Product ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Product image file (jpg, jpeg, png, gif, webp, max 10MB)
+        in: formData
+        name: image
+        required: true
+        type: file
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Image uploaded successfully
+          schema:
+            properties:
+              imageUrl:
+                type: string
+              message:
+                type: string
+            type: object
+        "400":
+          description: Invalid file format or upload error
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+        "403":
+          description: Forbidden - Admin only
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+        "404":
+          description: Product not found
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+        "500":
+          description: Image upload service unavailable
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+      security:
+      - Bearer: []
+      summary: Upload product image
       tags:
       - Products
 securityDefinitions:

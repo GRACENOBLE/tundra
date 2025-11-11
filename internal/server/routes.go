@@ -5,8 +5,10 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"strconv"
 	"time"
 	"tundra/internal/auth"
+	cldinary "tundra/internal/cloudinary"
 	"tundra/internal/database/models"
 
 	"github.com/gin-contrib/cors"
@@ -49,6 +51,7 @@ func (s *Server) RegisterRoutes() http.Handler {
 		productsAdmin.POST("/", s.createProductHandler)
 		productsAdmin.PUT("/:id", s.updateProductHandler)
 		productsAdmin.DELETE("/:id", s.deleteProductHandler)
+		productsAdmin.POST("/:id/image", s.uploadProductImageHandler)
 	}
 
 	// Protected order routes (require authentication, regular users can access)
@@ -227,70 +230,88 @@ func (s *Server) loginHandler(c *gin.Context) {
 }
 
 // @Summary Create a new product
-// @Description Create a new product in the catalog (Admin only)
+// @Description Create a new product in the catalog (Admin only). Supports optional image upload via multipart/form-data.
 // @Tags Products
-// @Accept json
+// @Accept multipart/form-data
 // @Produce json
 // @Security Bearer
-// @Param request body object{name=string,description=string,price=number,stock=integer,category=string} true "Product Request" example({"name":"Laptop","description":"High-performance laptop","price":999.99,"stock":50,"category":"Electronics"})
+// @Param name formData string true "Product name"
+// @Param description formData string true "Product description"
+// @Param price formData number true "Product price (must be positive)"
+// @Param stock formData integer true "Product stock (must be non-negative)"
+// @Param category formData string true "Product category"
+// @Param image formData file false "Product image (jpg, jpeg, png, gif, webp)"
 // @Success 201 {object} object{message=string,product=models.Product} "Product created successfully"
-// @Failure 400 {object} object{error=string} "Validation error"
+// @Failure 400 {object} object{error=string} "Validation error or invalid image format"
 // @Failure 401 {object} object{error=string} "Unauthorized"
 // @Failure 403 {object} object{error=string} "Forbidden - Admin only"
-// @Failure 500 {object} object{error=string} "Internal server error"
+// @Failure 500 {object} object{error=string} "Internal server error or image upload failed"
 // @Router /products [post]
 func (s *Server) createProductHandler(c *gin.Context) {
-	var productRequest struct {
-		Name        string  `json:"name" binding:"required"`
-		Description string  `json:"description" binding:"required"`
-		Price       float64 `json:"price" binding:"required"`
-		Stock       int64   `json:"stock" binding:"required"`
-		Category    string  `json:"category" binding:"required"`
-	}
-
-	if err := c.ShouldBindJSON(&productRequest); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "All fields are required"})
+	// Parse multipart form
+	if err := c.Request.ParseMultipartForm(10 << 20); err != nil { // 10 MB max
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Failed to parse form data"})
 		return
 	}
 
-	// Validate name must be non-empty
-	if len(productRequest.Name) == 0 {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Name must be a non-empty string"})
+	// Get form values
+	name := c.PostForm("name")
+	description := c.PostForm("description")
+	priceStr := c.PostForm("price")
+	stockStr := c.PostForm("stock")
+	category := c.PostForm("category")
+
+	// Validate required fields
+	if name == "" || description == "" || priceStr == "" || stockStr == "" || category == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "All fields (name, description, price, stock, category) are required"})
 		return
 	}
 
-	// Validate description must be non-empty
-	if len(productRequest.Description) == 0 {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Description must be a non-empty string"})
-		return
-	}
-
-	// Validate price must be positive
-	if productRequest.Price <= 0 {
+	// Parse and validate price
+	price, err := strconv.ParseFloat(priceStr, 64)
+	if err != nil || price <= 0 {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Price must be a positive number"})
 		return
 	}
 
-	// Validate stock must be non-negative
-	if productRequest.Stock < 0 {
+	// Parse and validate stock
+	stock, err := strconv.ParseInt(stockStr, 10, 64)
+	if err != nil || stock < 0 {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Stock must be a non-negative integer"})
 		return
 	}
 
-	// Validate category must be non-empty
-	if len(productRequest.Category) == 0 {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Category must be a non-empty string"})
-		return
-	}
-
+	// Create product
 	product := models.Product{
-		Name:        productRequest.Name,
-		Description: productRequest.Description,
-		Price:       productRequest.Price,
-		Stock:       productRequest.Stock,
-		Category:    productRequest.Category,
+		Name:        name,
+		Description: description,
+		Price:       price,
+		Stock:       stock,
+		Category:    category,
 	}
 
+	// Handle image upload if provided
+	file, header, err := c.Request.FormFile("image")
+	if err == nil && file != nil {
+		defer file.Close()
+
+		// Check if Cloudinary is available
+		if s.cloudinary == nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Image upload service is not available"})
+			return
+		}
+
+		// Upload to Cloudinary
+		imageURL, err := s.cloudinary.UploadImage(file, header.Filename, "products")
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": fmt.Sprintf("Failed to upload image: %v", err)})
+			return
+		}
+
+		product.ImageURL = imageURL
+	}
+
+	// Save product to database
 	if err := s.db.Create(&product).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create product"})
 		return
@@ -565,6 +586,15 @@ func (s *Server) deleteProductHandler(c *gin.Context) {
 		return
 	}
 
+	// Delete image from Cloudinary if it exists
+	if product.ImageURL != "" && s.cloudinary != nil {
+		publicID := cldinary.ExtractPublicID(product.ImageURL)
+		if publicID != "" {
+			// Delete from Cloudinary (don't fail if this fails)
+			_ = s.cloudinary.DeleteImage(publicID)
+		}
+	}
+
 	// Delete the product
 	if err := s.db.Delete(&product).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to delete product"})
@@ -576,6 +606,78 @@ func (s *Server) deleteProductHandler(c *gin.Context) {
 
 	// Return success message
 	c.JSON(http.StatusOK, gin.H{"message": "Product deleted successfully"})
+}
+
+// @Summary Upload product image
+// @Description Upload or update a product's image (Admin only). Accepts image files in jpg, jpeg, png, gif, or webp format.
+// @Tags Products
+// @Accept multipart/form-data
+// @Produce json
+// @Security Bearer
+// @Param id path string true "Product ID"
+// @Param image formData file true "Product image file (jpg, jpeg, png, gif, webp, max 10MB)"
+// @Success 200 {object} object{message=string,imageUrl=string} "Image uploaded successfully"
+// @Failure 400 {object} object{error=string} "Invalid file format or upload error"
+// @Failure 401 {object} object{error=string} "Unauthorized"
+// @Failure 403 {object} object{error=string} "Forbidden - Admin only"
+// @Failure 404 {object} object{error=string} "Product not found"
+// @Failure 500 {object} object{error=string} "Image upload service unavailable"
+// @Router /products/{id}/image [post]
+func (s *Server) uploadProductImageHandler(c *gin.Context) {
+	// Get product ID from URL
+	productID := c.Param("id")
+
+	// Find product
+	var product models.Product
+	if err := s.db.Where("id = ?", productID).First(&product).Error; err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Product not found"})
+		return
+	}
+
+	// Check if Cloudinary is available
+	if s.cloudinary == nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Image upload service is not available"})
+		return
+	}
+
+	// Get the uploaded file
+	file, header, err := c.Request.FormFile("image")
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "No image file provided"})
+		return
+	}
+	defer file.Close()
+
+	// Delete old image if it exists
+	if product.ImageURL != "" {
+		publicID := cldinary.ExtractPublicID(product.ImageURL)
+		if publicID != "" {
+			// Don't fail if deletion fails
+			_ = s.cloudinary.DeleteImage(publicID)
+		}
+	}
+
+	// Upload new image
+	imageURL, err := s.cloudinary.UploadImage(file, header.Filename, "products")
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": fmt.Sprintf("Failed to upload image: %v", err)})
+		return
+	}
+
+	// Update product with new image URL
+	product.ImageURL = imageURL
+	if err := s.db.Save(&product).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update product with image URL"})
+		return
+	}
+
+	// Invalidate product cache
+	s.invalidateProductCache()
+
+	c.JSON(http.StatusOK, gin.H{
+		"message":  "Image uploaded successfully",
+		"imageUrl": imageURL,
+	})
 }
 
 // @Summary Create a new order
