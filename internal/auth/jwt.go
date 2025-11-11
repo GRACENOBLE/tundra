@@ -6,17 +6,18 @@ import (
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
+	"github.com/google/uuid"
 )
 
 type Claims struct {
-	UserID uint   `json:"user_id"`
+	UserID string   `json:"user_id"`
 	Name   string `json:"name"`
 	Email  string `json:"email"`
 	jwt.RegisteredClaims
 }
 
 // Generates signed JWTs from userID, name, and email
-func GenerateJWT(userID uint, name, email string) (string, error) {
+func GenerateJWT(userID uuid.UUID, name, email string) (string, error) {
 	secret := os.Getenv("JWT_SECRET")
 	if secret == "" {
 		return "", errors.New("JWT_SECRET not set")
@@ -25,7 +26,7 @@ func GenerateJWT(userID uint, name, email string) (string, error) {
 	expirationTime := time.Now().Add(24 * time.Hour)
 
 	claims := &Claims{
-		UserID: userID,
+		UserID: userID.String(),
 		Name:   name,
 		Email:  email,
 		RegisteredClaims: jwt.RegisteredClaims{
@@ -35,7 +36,7 @@ func GenerateJWT(userID uint, name, email string) (string, error) {
 		},
 	}
 
-	token := jwt.NewWithClaims(jwt.SigningMethodES256, claims)
+	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
 	tokenString, err := token.SignedString([]byte(secret))
 	if err != nil {
 		return "", err

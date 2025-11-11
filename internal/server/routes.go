@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"net/http"
 	"strings"
+	"tundra/internal/auth"
 	"tundra/internal/database/models"
 
 	"github.com/gin-contrib/cors"
@@ -106,10 +107,37 @@ func (s *Server) loginHandler(c *gin.Context) {
 		return
 	}
 
+	//Knock off users with wrong emails first
 	var user models.User
 	if err := s.db.Where("email= ?", signInRequest.Email).First(&user).Error; err != nil {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid email or password"})
 		return
 	}
-	c.JSON(http.StatusOK, "Signin")
+
+	//Using one way check if the passwords match
+	if err := bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(signInRequest.Password)); err != nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid email or password"})
+		return
+	}
+
+	//Generate a JWT for the verified user
+	token, err := auth.GenerateJWT(user.ID, user.Name, user.Email)
+	 if err != nil {
+
+		fmt.Printf("JWT Generation Error: %v\n", err)
+        c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to generate token"})
+        return
+    }
+
+	// Successful login response
+    c.JSON(http.StatusOK, gin.H{
+        "message": "Login successful",
+        "token":   token,
+        "user": gin.H{
+            "id":    user.ID,
+            "name":  user.Name,
+            "email": user.Email,
+        },
+    })
+
 }
