@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"time"
 
 	"github.com/golang-migrate/migrate/v4"
 	_ "github.com/golang-migrate/migrate/v4/database/postgres"
@@ -50,6 +51,17 @@ func main() {
 
 	// Handle different actions
 	switch action {
+	case "create":
+		if len(flag.Args()) == 0 {
+			log.Fatal("Please provide a migration name: -action=create <migration_name>")
+		}
+		migrationName := flag.Arg(0)
+		if err := createMigration(migrationName); err != nil {
+			log.Fatalf("Failed to create migration: %v", err)
+		}
+		log.Printf("✓ Migration files created successfully!")
+		return
+
 	case "up":
 		if steps > 0 {
 			log.Printf("Migrating up %d steps...\n", steps)
@@ -117,4 +129,58 @@ func main() {
 	}
 
 	os.Exit(0)
+}
+
+func createMigration(name string) error {
+	timestamp := fmt.Sprintf("%d", getCurrentTimestamp())
+	upFile := fmt.Sprintf("migrations/%s_%s.up.sql", timestamp, name)
+	downFile := fmt.Sprintf("migrations/%s_%s.down.sql", timestamp, name)
+
+	// Create migrations directory if it doesn't exist
+	if err := os.MkdirAll("migrations", 0755); err != nil {
+		return fmt.Errorf("failed to create migrations directory: %w", err)
+	}
+
+	// Template for up migration
+	upTemplate := `-- Migration: %s
+-- Created at: %s
+-- Add your SQL statements here
+
+`
+
+	// Template for down migration
+	downTemplate := `-- Rollback: %s
+-- Created at: %s
+-- Add your rollback SQL statements here
+
+`
+
+	// Write up migration file
+	upContent := fmt.Sprintf(upTemplate, name, timestamp)
+	if err := os.WriteFile(upFile, []byte(upContent), 0644); err != nil {
+		return fmt.Errorf("failed to create up migration: %w", err)
+	}
+
+	// Write down migration file
+	downContent := fmt.Sprintf(downTemplate, name, timestamp)
+	if err := os.WriteFile(downFile, []byte(downContent), 0644); err != nil {
+		return fmt.Errorf("failed to create down migration: %w", err)
+	}
+
+	log.Printf("Created migration files:\n")
+	log.Printf("  - %s\n", upFile)
+	log.Printf("  - %s\n", downFile)
+
+	return nil
+}
+
+func getCurrentTimestamp() int64 {
+	// Using format: YYYYMMDDHHMMSS (e.g., 20241111123045)
+	// This matches the golang-migrate timestamp format
+	now := time.Now()
+	timestamp := now.Format("20060102150405")
+
+	var result int64
+	fmt.Sscanf(timestamp, "%d", &result)
+	return result
 }

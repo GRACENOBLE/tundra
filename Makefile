@@ -30,6 +30,11 @@ itest:
 	@go test ./internal/database -v
 
 # Database Migrations
+migrate-create:
+	@echo "Creating migration..."
+	@powershell -Command "if ('$(name)' -eq '') { Write-Output 'Error: Please provide a migration name using name=<migration_name>'; Write-Output 'Example: make migrate-create name=add_username_to_users'; exit 1 }"
+	@go run cmd/migrate/main.go -action=create $(name)
+
 migrate-up-all:
 	@echo "Running migrations..."
 	@go run cmd/migrate/main.go -action=up
@@ -72,4 +77,4 @@ watch:
 		Write-Output 'Watching...'; \
 	}"
 
-.PHONY: all build run test clean watch docker-run docker-down itest migrate-up migrate-down migrate-down-1 migrate-up-1 migrate-status migrate-refresh
+.PHONY: all build run test clean watch docker-run docker-down itest migrate-create migrate-up-all migrate-down-all migrate-down migrate-up migrate-status migrate-refresh
