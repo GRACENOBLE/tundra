@@ -292,7 +292,7 @@ The test suite includes:
 - Order processing tests
 - Cache hit/miss scenarios
 - Cache invalidation tests
-- Rate limiting tests (8 comprehensive scenarios)
+- Rate limiting tests
 
 ## Project Structure
 
@@ -419,7 +419,7 @@ cp .env.example .env
 make docker-run
 
 # 4. Run migrations
-go run cmd/migrate/main.go -action=up
+make migrate-up-all
 
 # 5. Start the API
 make run
@@ -484,7 +484,7 @@ go run cmd/migrate/main.go -action=down
 After modifying API endpoints or annotations:
 
 ```bash
-swag init -g cmd/api/main.go --parseDependency --parseInternal
+make swagger
 ```
 
 ## Troubleshooting
