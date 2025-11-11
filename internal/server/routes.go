@@ -1,8 +1,11 @@
 package server
 
 import (
+	"context"
+	"encoding/json"
 	"fmt"
 	"net/http"
+	"time"
 	"tundra/internal/auth"
 	"tundra/internal/database/models"
 
@@ -52,6 +55,20 @@ func (s *Server) RegisterRoutes() http.Handler {
 	}
 
 	return r
+}
+
+// invalidateProductCache clears all product listing cache entries
+func (s *Server) invalidateProductCache() {
+	if s.redis == nil {
+		return
+	}
+
+	ctx := context.Background()
+	// Delete all keys matching the pattern "products:*"
+	iter := s.redis.Scan(ctx, 0, "products:*", 0).Iterator()
+	for iter.Next(ctx) {
+		s.redis.Del(ctx, iter.Val())
+	}
 }
 
 func (s *Server) signUpHandler(c *gin.Context) {
@@ -240,6 +257,9 @@ func (s *Server) createProductHandler(c *gin.Context) {
 		return
 	}
 
+	// Invalidate product listing cache
+	s.invalidateProductCache()
+
 	c.JSON(http.StatusCreated, gin.H{
 		"message": "Product created successfully",
 		"product": product,
@@ -324,6 +344,9 @@ func (s *Server) updateProductHandler(c *gin.Context) {
 		return
 	}
 
+	// Invalidate product listing cache
+	s.invalidateProductCache()
+
 	c.JSON(http.StatusOK, gin.H{
 		"message": "Product updated successfully",
 		"product": product,
@@ -356,6 +379,24 @@ func (s *Server) listProductsHandler(c *gin.Context) {
 	// Get search parameter
 	searchQuery := c.Query("search")
 
+	// Generate cache key based on query parameters
+	cacheKey := fmt.Sprintf("products:page:%d:size:%d:search:%s", page, pageSize, searchQuery)
+
+	// Try to get from cache if Redis is available
+	if s.redis != nil {
+		ctx := context.Background()
+		cachedData, err := s.redis.Get(ctx, cacheKey).Result()
+		if err == nil && cachedData != "" {
+			// Cache hit - return cached data
+			var cachedResponse map[string]interface{}
+			if err := json.Unmarshal([]byte(cachedData), &cachedResponse); err == nil {
+				c.JSON(http.StatusOK, cachedResponse)
+				return
+			}
+		}
+	}
+
+	// Cache miss or Redis unavailable - fetch from database
 	// Calculate offset for pagination
 	offset := (page - 1) * pageSize
 
@@ -391,14 +432,27 @@ func (s *Server) listProductsHandler(c *gin.Context) {
 		return
 	}
 
-	// Return paginated response
-	c.JSON(http.StatusOK, gin.H{
+	// Prepare response
+	response := gin.H{
 		"currentPage":   page,
 		"pageSize":      len(products),
 		"totalPages":    totalPages,
 		"totalProducts": totalProducts,
 		"products":      products,
-	})
+	}
+
+	// Cache the response if Redis is available
+	if s.redis != nil {
+		ctx := context.Background()
+		responseJSON, err := json.Marshal(response)
+		if err == nil {
+			// Cache for 5 minutes
+			s.redis.Set(ctx, cacheKey, responseJSON, 5*time.Minute)
+		}
+	}
+
+	// Return response
+	c.JSON(http.StatusOK, response)
 }
 
 func (s *Server) getProductHandler(c *gin.Context) {
@@ -432,6 +486,9 @@ func (s *Server) deleteProductHandler(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to delete product"})
 		return
 	}
+
+	// Invalidate product listing cache
+	s.invalidateProductCache()
 
 	// Return success message
 	c.JSON(http.StatusOK, gin.H{"message": "Product deleted successfully"})

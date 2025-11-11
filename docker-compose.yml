@@ -11,5 +11,15 @@ services:
     volumes:
       - psql_volume_bp:/var/lib/postgresql/data
 
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_volume:/data
+    command: redis-server --appendonly yes
+
 volumes:
   psql_volume_bp:
+  redis_volume:

@@ -1,6 +1,7 @@
 package server
 
 import (
+	"context"
 	"fmt"
 	"net/http"
 	"os"
@@ -8,6 +9,7 @@ import (
 	"time"
 
 	_ "github.com/joho/godotenv/autoload"
+	"github.com/redis/go-redis/v9"
 	"gorm.io/gorm"
 
 	"tundra/internal/database"
@@ -16,15 +18,36 @@ import (
 type Server struct {
 	port int
 
-	db *gorm.DB
+	db    *gorm.DB
+	redis *redis.Client
 }
 
 func NewServer() *http.Server {
 	port, _ := strconv.Atoi(os.Getenv("PORT"))
-	NewServer := &Server{
-		port: port,
 
-		db: database.New().GetDB(),
+	// Initialize Redis client
+	redisAddr := os.Getenv("REDIS_ADDR")
+	if redisAddr == "" {
+		redisAddr = "localhost:6379"
+	}
+
+	redisClient := redis.NewClient(&redis.Options{
+		Addr:     redisAddr,
+		Password: os.Getenv("REDIS_PASSWORD"), // empty if no password
+		DB:       0,                           // use default DB
+	})
+
+	// Test Redis connection
+	ctx := context.Background()
+	if err := redisClient.Ping(ctx).Err(); err != nil {
+		fmt.Printf("Warning: Redis connection failed: %v. Caching will be disabled.\n", err)
+		redisClient = nil
+	}
+
+	NewServer := &Server{
+		port:  port,
+		db:    database.New().GetDB(),
+		redis: redisClient,
 	}
 
 	// Declare Server config
