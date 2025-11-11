@@ -202,13 +202,13 @@ func TestProductValidationRules(t *testing.T) {
 
 func TestListProductsPagination(t *testing.T) {
 	tests := []struct {
-		name              string
-		page              string
-		pageSize          string
-		expectedDefaults  bool
-		expectedPage      int
-		expectedPageSize  int
-		description       string
+		name             string
+		page             string
+		pageSize         string
+		expectedDefaults bool
+		expectedPage     int
+		expectedPageSize int
+		description      string
 	}{
 		{
 			name:             "Default pagination",

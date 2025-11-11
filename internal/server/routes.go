@@ -8,7 +8,9 @@ import (
 
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
+	"github.com/google/uuid"
 	"golang.org/x/crypto/bcrypt"
+	"gorm.io/gorm/clause"
 )
 
 func (s *Server) RegisterRoutes() http.Handler {
@@ -39,6 +41,13 @@ func (s *Server) RegisterRoutes() http.Handler {
 		productsAdmin.POST("/", s.createProductHandler)
 		productsAdmin.PUT("/:id", s.updateProductHandler)
 		productsAdmin.DELETE("/:id", s.deleteProductHandler)
+	}
+
+	// Protected order routes (require authentication, regular users can access)
+	orders := r.Group("/orders")
+	orders.Use(auth.AuthMiddleware()) // Require authentication
+	{
+		orders.POST("/", s.createOrderHandler)
 	}
 
 	return r
@@ -425,6 +434,128 @@ func (s *Server) deleteProductHandler(c *gin.Context) {
 
 	// Return success message
 	c.JSON(http.StatusOK, gin.H{"message": "Product deleted successfully"})
+}
+
+func (s *Server) createOrderHandler(c *gin.Context) {
+	// Get user ID from context (set by AuthMiddleware)
+	userID, exists := c.Get("userID")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "User not authenticated"})
+		return
+	}
+
+	// Parse request body
+	var orderItems []struct {
+		ProductID string `json:"productId" binding:"required"`
+		Quantity  int    `json:"quantity" binding:"required,gt=0"`
+	}
+
+	if err := c.ShouldBindJSON(&orderItems); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request body"})
+		return
+	}
+
+	if len(orderItems) == 0 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Order must contain at least one item"})
+		return
+	}
+
+	// Start database transaction
+	tx := s.db.Begin()
+	defer func() {
+		if r := recover(); r != nil {
+			tx.Rollback()
+		}
+	}()
+
+	if tx.Error != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to start transaction"})
+		return
+	}
+
+	// Validate products and check stock
+	var totalPrice float64
+	var orderProducts []models.OrderProduct
+
+	for _, item := range orderItems {
+		var product models.Product
+		
+		// Find product and lock row for update to prevent race conditions
+		if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).Where("id = ?", item.ProductID).First(&product).Error; err != nil {
+			tx.Rollback()
+			c.JSON(http.StatusNotFound, gin.H{"error": fmt.Sprintf("Product with ID %s not found", item.ProductID)})
+			return
+		}
+
+		// Check stock availability
+		if product.Stock < int64(item.Quantity) {
+			tx.Rollback()
+			c.JSON(http.StatusBadRequest, gin.H{"error": fmt.Sprintf("Insufficient stock for product: %s (available: %d, requested: %d)", product.Name, product.Stock, item.Quantity)})
+			return
+		}
+
+		// Calculate item total and add to order total
+		itemTotal := product.Price * float64(item.Quantity)
+		totalPrice += itemTotal
+
+		// Update product stock
+		product.Stock -= int64(item.Quantity)
+		if err := tx.Save(&product).Error; err != nil {
+			tx.Rollback()
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update product stock"})
+			return
+		}
+
+		// Store order product info for later creation
+		orderProducts = append(orderProducts, models.OrderProduct{
+			ProductID: product.ID,
+			Quantity:  item.Quantity,
+			Price:     product.Price, // Store price at time of order
+		})
+	}
+
+	// Create order
+	order := models.Order{
+		UserID:      userID.(uuid.UUID),
+		Description: fmt.Sprintf("Order with %d item(s)", len(orderItems)),
+		TotalPrice:  totalPrice,
+		Status:      "pending",
+	}
+
+	if err := tx.Create(&order).Error; err != nil {
+		tx.Rollback()
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create order"})
+		return
+	}
+
+	// Create order products (join table entries)
+	for i := range orderProducts {
+		orderProducts[i].OrderID = order.ID
+	}
+
+	if err := tx.Create(&orderProducts).Error; err != nil {
+		tx.Rollback()
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create order items"})
+		return
+	}
+
+	// Commit transaction
+	if err := tx.Commit().Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to commit transaction"})
+		return
+	}
+
+	// Load order products with product details for response
+	var createdOrder models.Order
+	if err := s.db.Preload("OrderProducts.Product").First(&createdOrder, order.ID).Error; err != nil {
+		// Order was created successfully, but we couldn't load it
+		// Return basic order info
+		c.JSON(http.StatusCreated, order)
+		return
+	}
+
+	// Return created order with full details
+	c.JSON(http.StatusCreated, createdOrder)
 }
 
 // Helper function to parse positive integers from string
