@@ -29,6 +29,7 @@ func (s *Server) RegisterRoutes() http.Handler {
 
 	// Public product routes (no authentication required)
 	r.GET("/products", s.listProductsHandler)
+	r.GET("/products/:id", s.getProductHandler)
 
 	// Protected product routes (require authentication and admin role)
 	productsAdmin := r.Group("/products")
@@ -387,6 +388,21 @@ func (s *Server) listProductsHandler(c *gin.Context) {
 		"totalProducts": totalProducts,
 		"products":      products,
 	})
+}
+
+func (s *Server) getProductHandler(c *gin.Context) {
+	// Get product ID from URL parameter
+	productID := c.Param("id")
+
+	// Find product by ID
+	var product models.Product
+	if err := s.db.Where("id = ?", productID).First(&product).Error; err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Product not found"})
+		return
+	}
+
+	// Return product details
+	c.JSON(http.StatusOK, product)
 }
 
 // Helper function to parse positive integers from string
