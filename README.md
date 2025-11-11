@@ -117,7 +117,7 @@ Swagger documentation at `http://localhost:8080/swagger/index.html`
 
 ### Authentication
 
-- `POST /auth/register` - Register a new user
+- `POST /auth/register` - Register a new user (You cannot create an admin account, It is better to use the demo provided by the "make seed" command)
 - `POST /auth/login` - Login and receive JWT token
 
 ### Products (Public)
