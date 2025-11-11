@@ -169,10 +169,46 @@ func (s *Server) loginHandler(c *gin.Context) {
 }
 
 func (s *Server) createProductHandler(c *gin.Context) {
-	var productRequest models.Product
+	var productRequest struct {
+		Name        string  `json:"name" binding:"required"`
+		Description string  `json:"description" binding:"required"`
+		Price       float64 `json:"price" binding:"required"`
+		Stock       int64   `json:"stock" binding:"required"`
+		Category    string  `json:"category" binding:"required"`
+	}
 
 	if err := c.ShouldBindJSON(&productRequest); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		c.JSON(http.StatusBadRequest, gin.H{"error": "All fields are required"})
+		return
+	}
+
+	// Validate name must be non-empty
+	if len(productRequest.Name) == 0 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Name must be a non-empty string"})
+		return
+	}
+
+	// Validate description must be non-empty
+	if len(productRequest.Description) == 0 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Description must be a non-empty string"})
+		return
+	}
+
+	// Validate price must be positive
+	if productRequest.Price <= 0 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Price must be a positive number"})
+		return
+	}
+
+	// Validate stock must be non-negative
+	if productRequest.Stock < 0 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Stock must be a non-negative integer"})
+		return
+	}
+
+	// Validate category must be non-empty
+	if len(productRequest.Category) == 0 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Category must be a non-empty string"})
 		return
 	}
 
@@ -221,28 +257,49 @@ func (s *Server) updateProductHandler(c *gin.Context) {
 		return
 	}
 
-	// Update only the fields that were provided
+	// Validate and update only the fields that were provided
 	if updateRequest.Name != nil {
+		// Name must be a non-empty string
+		if len(*updateRequest.Name) == 0 {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Name must be a non-empty string"})
+			return
+		}
 		product.Name = *updateRequest.Name
 	}
+
 	if updateRequest.Description != nil {
+		// Description must be a non-empty string
+		if len(*updateRequest.Description) == 0 {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Description must be a non-empty string"})
+			return
+		}
 		product.Description = *updateRequest.Description
 	}
+
 	if updateRequest.Price != nil {
+		// Price must be a positive number
 		if *updateRequest.Price <= 0 {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "Price must be greater than 0"})
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Price must be a positive number"})
 			return
 		}
 		product.Price = *updateRequest.Price
 	}
+
 	if updateRequest.Stock != nil {
+		// Stock must be a non-negative integer
 		if *updateRequest.Stock < 0 {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "Stock cannot be negative"})
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Stock must be a non-negative integer"})
 			return
 		}
 		product.Stock = *updateRequest.Stock
 	}
+
 	if updateRequest.Category != nil {
+		// Category must be a non-empty string
+		if len(*updateRequest.Category) == 0 {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Category must be a non-empty string"})
+			return
+		}
 		product.Category = *updateRequest.Category
 	}
 
