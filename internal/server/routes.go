@@ -30,6 +30,7 @@ func (s *Server) RegisterRoutes() http.Handler {
 	products := r.Group("/products")
 	{
 		products.POST("/", s.createProductHandler)
+		products.PUT("/:id", s.updateProductHandler)
 	}
 
 	return r
@@ -100,7 +101,7 @@ func (s *Server) signUpHandler(c *gin.Context) {
 		return
 	}
 
-	// Return success response
+	// Return success response (without password)
 	c.JSON(http.StatusCreated, gin.H{
 		"message": "User registered successfully",
 		"user": gin.H{
@@ -112,41 +113,46 @@ func (s *Server) signUpHandler(c *gin.Context) {
 }
 
 func (s *Server) loginHandler(c *gin.Context) {
-	//Sign in request struct
-	var signInRequest struct {
-		Email    string `json:"email" binding:"required,email"`
-		Password string `json:"password" binding:"required,min=8"`
+	// Login request struct
+	var loginRequest struct {
+		Email    string `json:"email" binding:"required"`
+		Password string `json:"password" binding:"required"`
 	}
 
-	//Parse the object
-	if err := c.ShouldBindJSON(&signInRequest); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+	// Parse the request body
+	if err := c.ShouldBindJSON(&loginRequest); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Email and password are required"})
 		return
 	}
 
-	//Knock off users with wrong emails first
+	// Validate email format
+	if err := auth.ValidateEmail(loginRequest.Email); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid email format"})
+		return
+	}
+
+	// Find user by email
 	var user models.User
-	if err := s.db.Where("email= ?", signInRequest.Email).First(&user).Error; err != nil {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid email or password"})
+	if err := s.db.Where("email = ?", loginRequest.Email).First(&user).Error; err != nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid credentials"})
 		return
 	}
 
-	//Using one way check if the passwords match
-	if err := bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(signInRequest.Password)); err != nil {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid email or password"})
+	// Compare password with hashed password
+	if err := bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(loginRequest.Password)); err != nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid credentials"})
 		return
 	}
 
-	//Generate a JWT for the verified user
+	// Generate JWT for the authenticated user
 	token, err := auth.GenerateJWT(user.ID, user.Username, user.Email)
 	if err != nil {
-
 		fmt.Printf("JWT Generation Error: %v\n", err)
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to generate token"})
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to generate authentication token"})
 		return
 	}
 
-	// Successful login response
+	// Successful login response with JWT
 	c.JSON(http.StatusOK, gin.H{
 		"message": "Login successful",
 		"token":   token,
@@ -156,7 +162,6 @@ func (s *Server) loginHandler(c *gin.Context) {
 			"email":    user.Email,
 		},
 	})
-
 }
 
 func (s *Server) createProductHandler(c *gin.Context) {
@@ -179,4 +184,72 @@ func (s *Server) createProductHandler(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create product"})
 		return
 	}
+
+	c.JSON(http.StatusCreated, gin.H{
+		"message": "Product created successfully",
+		"product": product,
+	})
+}
+
+func (s *Server) updateProductHandler(c *gin.Context) {
+	// Get product ID from URL parameter
+	id := c.Param("id")
+
+	// Find the product by ID
+	var product models.Product
+	if err := s.db.Where("id = ?", id).First(&product).Error; err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Product not found"})
+		return
+	}
+
+	// Update request struct - all fields are optional
+	var updateRequest struct {
+		Name        *string  `json:"name"`
+		Description *string  `json:"description"`
+		Price       *float64 `json:"price"`
+		Stock       *int64   `json:"stock"`
+		Category    *string  `json:"category"`
+	}
+
+	// Parse the request body
+	if err := c.ShouldBindJSON(&updateRequest); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	// Update only the fields that were provided
+	if updateRequest.Name != nil {
+		product.Name = *updateRequest.Name
+	}
+	if updateRequest.Description != nil {
+		product.Description = *updateRequest.Description
+	}
+	if updateRequest.Price != nil {
+		if *updateRequest.Price <= 0 {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Price must be greater than 0"})
+			return
+		}
+		product.Price = *updateRequest.Price
+	}
+	if updateRequest.Stock != nil {
+		if *updateRequest.Stock < 0 {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Stock cannot be negative"})
+			return
+		}
+		product.Stock = *updateRequest.Stock
+	}
+	if updateRequest.Category != nil {
+		product.Category = *updateRequest.Category
+	}
+
+	// Save the updated product
+	if err := s.db.Save(&product).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update product"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"message": "Product updated successfully",
+		"product": product,
+	})
 }
