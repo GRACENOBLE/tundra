@@ -75,6 +75,18 @@ func (s *Server) RegisterRoutes() http.Handler {
 		orders.GET("", s.getOrdersHandler)
 	}
 
+	// Routes for handling categories
+	categories := r.Group("/categories")
+	categories.Use(auth.AdminMiddleware()) //Require authentication
+	{
+		categories.POST("", s.createCategory)
+		categories.GET("", s.getAllCategory)
+		categories.GET("/:id", s.getCategoryByIDCategory)
+		categories.PUT("/:id", s.updateCategory)
+		categories.DELETE("/:id", s.deleteCategory)
+	} 
+
+
 	return r
 }
 
@@ -908,3 +920,74 @@ func parsePositiveInt(s string) (int, error) {
 	_, err := fmt.Sscanf(s, "%d", &result)
 	return result, err
 }
+
+/*
+
+		categories.POST("", s.createCategory)
+		categories.GET("", s.getAllCategory)
+		categories.GET("/:id", s.getCategoryByIDCategory)
+		categories.PUT("/:id", s.updateCategory)
+		categories.DELETE("/:id", s.createCategory)
+*/
+
+//Create a new category
+func (s *Server) createCategory(c *gin.Context){
+	//Parse multipart form
+	if err := c.Request.ParseMultipartForm(10 << 20); err != nil { // 10 MB max
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Failed to parse form data"})
+		return
+	}
+
+	//Get form values
+	name := c.PostForm("name")
+	description := c.PostForm("description")
+
+	// Validate required fields
+	if name == "" || description == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "All fields (name, description) are required"})
+		return
+	}
+
+	// Get user ID from context (set by AuthMiddleware)
+	userID, exists := c.Get("userID")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "User authentication required"})
+		return
+	}
+
+	// Parse user ID to UUID
+	_, err := uuid.Parse(userID.(string))
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Invalid user ID"})
+		return
+	}
+
+	//create a new category
+	category := models.Category{
+		Name: name,
+		Description: description,
+	}
+
+	//Save the category to the database
+	if err := s.db.Create(&category).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create category"})
+		return
+	}
+
+	c.JSON(http.StatusCreated, gin.H{
+		"message": "Category created successfully",
+		"product": category,
+	})
+}
+
+// Get all categories
+func (s *Server) getAllCategory(c *gin.Context){}
+
+//Get category by Id
+func (s *Server) getCategoryByIDCategory(c *gin.Context){}
+
+//Update a category
+func (s *Server) updateCategory(c *gin.Context){}
+
+//Delete a categpry
+func (s *Server) deleteCategory(c *gin.Context){}

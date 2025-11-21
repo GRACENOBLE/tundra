@@ -152,5 +152,6 @@ func AutoMigrate(db *gorm.DB) error {
 		&models.User{},
 		&models.Product{},
 		&models.Order{},
+		&models.Category{},
 	)
 }
