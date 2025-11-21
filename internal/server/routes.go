@@ -981,10 +981,27 @@ func (s *Server) createCategory(c *gin.Context){
 }
 
 // Get all categories
-func (s *Server) getAllCategory(c *gin.Context){}
+func (s *Server) getAllCategory(c *gin.Context){
+
+
+}
 
 //Get category by Id
-func (s *Server) getCategoryByIDCategory(c *gin.Context){}
+func (s *Server) getCategoryByIDCategory(c *gin.Context){
+	//Get category Id fronm the context
+	categoryID := c.Param("id")
+
+	//Find category by ID
+var category models.Category
+	if err := s.db.Where("id = ?", categoryID).First(&category).Error; err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Category not found"})
+		return
+	}
+
+	// Return category details
+	c.JSON(http.StatusOK, category)
+
+}
 
 //Update a category
 func (s *Server) updateCategory(c *gin.Context){}
