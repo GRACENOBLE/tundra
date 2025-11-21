@@ -84,8 +84,7 @@ func (s *Server) RegisterRoutes() http.Handler {
 		categories.GET("/:id", s.getCategoryByIDCategory)
 		categories.PUT("/:id", s.updateCategory)
 		categories.DELETE("/:id", s.deleteCategory)
-	} 
-
+	}
 
 	return r
 }
@@ -923,15 +922,15 @@ func parsePositiveInt(s string) (int, error) {
 
 /*
 
-		categories.POST("", s.createCategory)
-		categories.GET("", s.getAllCategory)
-		categories.GET("/:id", s.getCategoryByIDCategory)
-		categories.PUT("/:id", s.updateCategory)
-		categories.DELETE("/:id", s.createCategory)
+	categories.POST("", s.createCategory)
+	categories.GET("", s.getAllCategory)
+	categories.GET("/:id", s.getCategoryByIDCategory)
+	categories.PUT("/:id", s.updateCategory)
+	categories.DELETE("/:id", s.createCategory)
 */
 
-//Create a new category
-func (s *Server) createCategory(c *gin.Context){
+// Create a new category
+func (s *Server) createCategory(c *gin.Context) {
 	//Parse multipart form
 	if err := c.Request.ParseMultipartForm(10 << 20); err != nil { // 10 MB max
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Failed to parse form data"})
@@ -964,7 +963,7 @@ func (s *Server) createCategory(c *gin.Context){
 
 	//create a new category
 	category := models.Category{
-		Name: name,
+		Name:        name,
 		Description: description,
 	}
 
@@ -981,18 +980,24 @@ func (s *Server) createCategory(c *gin.Context){
 }
 
 // Get all categories
-func (s *Server) getAllCategory(c *gin.Context){
+func (s *Server) getAllCategory(c *gin.Context) {
+	var categories models.Category
+	if err := s.db.Find(&categories).Error; err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Failed to fetch Categories"})
+		return
+	}
 
-
+	// Return category details
+	c.JSON(http.StatusOK, categories)
 }
 
-//Get category by Id
-func (s *Server) getCategoryByIDCategory(c *gin.Context){
+// Get category by Id
+func (s *Server) getCategoryByIDCategory(c *gin.Context) {
 	//Get category Id fronm the context
 	categoryID := c.Param("id")
 
 	//Find category by ID
-var category models.Category
+	var category models.Category
 	if err := s.db.Where("id = ?", categoryID).First(&category).Error; err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "Category not found"})
 		return
@@ -1003,8 +1008,8 @@ var category models.Category
 
 }
 
-//Update a category
-func (s *Server) updateCategory(c *gin.Context){}
+// Update a category
+func (s *Server) updateCategory(c *gin.Context) {}
 
-//Delete a categpry
-func (s *Server) deleteCategory(c *gin.Context){}
+// Delete a categpry
+func (s *Server) deleteCategory(c *gin.Context) {}
